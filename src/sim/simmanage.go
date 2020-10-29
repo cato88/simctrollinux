@@ -1,9 +1,9 @@
 package sim
 
 import (
+	"inf"
 	"proc"
 	"udpserver"
-	"inf"
 )
 
 
@@ -68,7 +68,7 @@ func Auth(slot int,imsi string,randstr string,autn string,clientip string) int{
 		if ret <0 {	//失败
 			return -5
 		}else if ret ==1 {//重复鉴权,有结果
-			udpserver.GSimCtrl.AuthResult(slot,imsi, int(result),sres,ck,ik, clientip)
+			udpserver.GSimCtrlInf.AuthResult(slot,imsi, int(result),sres,ck,ik, clientip)
 			return 0
 
 		}else if ret == 2 {	//重复鉴权,无结果

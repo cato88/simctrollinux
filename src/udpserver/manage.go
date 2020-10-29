@@ -20,14 +20,16 @@ type UdpClientInfo struct {
 	UserName		string
 }
 
-var GSimCtrl inf.SimCtroler
+var GSimCtrlInf inf.SimCtroler
 
 func UdpServerInit(ip string,cmdport int,dataport int,ctrol inf.SimCtroler) int {
-	GSimCtrl = ctrol
-	ret := UdpCmdServerInit(ip,cmdport)
+
+	GSimCtrlInf = ctrol
+
+	ret := UdpCmdServerInit(ip,cmdport,ctrol)
 	if ret !=0 {
 		return ret
 	}
-	return UdpDataServerInit(ip,dataport)
+	return UdpDataServerInit(ip,dataport,ctrol)
 }
 

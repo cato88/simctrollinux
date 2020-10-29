@@ -34,9 +34,11 @@ func (sim *SimInterfaceStruct) AuthResult(slot int,imsi string,result int,sres s
 
 
 func main() {
-	simctl := new (SimInterfaceStruct)
-	ret := sim.InitSimControl("210.32.1.229", 8888, 8889,simctl)
-	fmt.Printf("InitSimControl ret=%d\n", ret)
+
+	simctl := SimInterfaceStruct{}
+
+	sim.InitSimControl("210.32.1.229", 8888, 8889,&simctl)
+
 
 	for {
 		var randstr string = "b93011f0874d02e5a2a7703596631dcb"
@@ -44,4 +46,5 @@ func main() {
 		sim.Auth(1,imsi,randstr,"","210.32.1.229")
 		time.Sleep(10000)
 	}
+
 }

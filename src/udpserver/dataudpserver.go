@@ -30,7 +30,7 @@ var gDataUdpSendFifo *jsutils.LimitedEntryFifo
 
 var gDataClientIdArr  [proc.DATA_CLIENT_MAX_COUNT+1] int32
 
-
+var gDataSimCtrlInf inf.SimCtroler
 
 ///////////////////////////////////////////////////////////
 
@@ -121,7 +121,8 @@ func DataTimeOut(){
 		if time.Now().Unix() >= (v.(UdpClientInfo).LastTime +gDataClientKeepActiveTime){
 			gDataUdpClientMap.Delete(k)
 			gDataUdpAddrMap.Delete(v.(UdpClientInfo).Addrstr)
-			gDataClientIdArr[k.(int32)] = 0
+			nClientId,_ :=k.(int32)
+			gDataClientIdArr[nClientId] = 0
 			fmt.Printf("DataUdpTimeProcess delete key=%v value=%v\n",k,v)
 			return true
 		}
@@ -212,7 +213,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
-						GSimCtrl.AuthResult(int(slot), imsi, result, sres, kc, "", cmdClientip)
+						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, "", cmdClientip)
 						proc.SetErroCount(0, slot, cmdClientId)
 					}else{
 						proc.SetErroCount(proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT, slot, cmdClientId)
@@ -239,7 +240,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
-						GSimCtrl.AuthResult(int(slot), imsi, result, sres, kc, ik, cmdClientip)
+						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, ik, cmdClientip)
 						proc.SetErroCount(0, slot, cmdClientId)
 					}else{
 						proc.SetErroCount(proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT, slot, cmdClientId)
@@ -269,7 +270,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
-						GSimCtrl.AuthResult(int(slot), imsi, result, sres, kc, "", cmdClientip)
+						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, "", cmdClientip)
 						proc.SetErroCount(0, slot, cmdClientId)
 					}else{
 						proc.SetErroCount(proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT, slot, cmdClientId)
@@ -285,7 +286,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
-						GSimCtrl.AuthResult(int(slot), imsi, result, sres, kc, ik, cmdClientip)
+						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, ik, cmdClientip)
 						proc.SetErroCount(0, slot, cmdClientId)
 					}else{
 						proc.SetErroCount(proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT, slot, cmdClientId)
@@ -335,18 +336,19 @@ func DataUdpServerRecv(conn *net.UDPConn)  {
 		if ok != true {
 			clientid = getDataUdpClientPos();
 			gDataUdpAddrMap.Store(clientAddr.String(),clientid)
-
-			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:clientid.(int32),LastTime:time.Now().Unix()}
+			nClientId,_ :=clientid.(int32)
+			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:nClientId,LastTime:time.Now().Unix()}
 			gDataUdpClientMap.Store(clientid,clientinfo)
 
 			fmt.Printf("!!! DataUdpServerRecv new client_id = %v  addr=%s\n",clientid,clientAddr.String())
-			gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid.(int32) ,buf))
+			gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(nClientId ,buf))
 		}else {
-			clientinfo,ok1 := FindDataClientInfo(clientid.(int32))
+			nClientId,_ :=clientid.(int32)
+			clientinfo,ok1 := FindDataClientInfo(nClientId)
 			if ok1 == true{
 				clientinfo.LastTime = time.Now().Unix();
 				fmt.Printf("DataUdpServerRecv mutil client_id = %v  addr=%s\n",clientid,clientAddr.String())
-				gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid.(int32),buf))
+				gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(nClientId,buf))
 			}
 		}
 	}
@@ -379,14 +381,14 @@ func DataUdpServerSend(conn *net.UDPConn)  {
 	}
 }
 
-func UdpDataServerInit(ip string,cmdport int) int {
+func UdpDataServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
 
 	var addrStr string
 	addrStr = fmt.Sprintf("%s:%d",ip,cmdport)
 	gDataUdpServerIp = ip
 	gDataUdpServerPort = uint16(cmdport)
 	fmt.Println("UdpDataServerInit addrInfo = "+addrStr)
-
+	gDataSimCtrlInf = ctrol
 	udpAddr,err := net.ResolveUDPAddr("udp",addrStr)
 	if err != nil{
 		fmt.Println("UdpDataServerInit ResolveUDPAddr err="+err.Error())
