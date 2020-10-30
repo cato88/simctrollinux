@@ -427,6 +427,89 @@ func DecodeCloseAck(instr string) (string,string,int,) {
 	return from,to,code
 }
 
+
+func EncodeUpdate(cSeq int,from string,to string,slot int,ttid int32,ssrc int32) ([]byte,int,bool) {
+	var bret bool = false
+
+	var status uint16= 0
+	status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
+
+	ack := map[string] interface{}{
+		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
+		ESCC_MSG_PAR_MSG	:ESCC_MSG_UPDATE,
+		ESCC_MSG_PAR_CSEQ	:cSeq,
+		ESCC_MSG_PAR_FROM	:from,
+		ESCC_MSG_PAR_TO	: to,
+		ESCC_MSG_PAR_CODE 	: ESCC_MSG_CODE_OK,
+		ESCC_MSG_PAR_REASON	:"OK",
+	}
+
+	data, err := json.Marshal(ack)
+	if err != nil {
+		bret = false
+	}
+	datalen := len(data)
+	data = data[:datalen]
+
+	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
+
+	resphear := &CmdHeadInfo{
+		Ver : 0x10,
+		Length:  len_temp,
+		Ttid:  uint32(ttid),
+		Ssrc : uint32(ssrc),
+		Status:  status,
+		Flag:  0x40,
+		Magic:  0xa3c5,
+	}
+
+	head := *(*[]byte)(unsafe.Pointer(resphear))
+	head = append(head,data...)
+	return head,len(head),bret
+}
+
+
+func EncodeClose(cSeq int,from string,to string,slot int,ttid int32,ssrc int32) ([]byte,int,bool) {
+	var bret bool = false
+
+	var status uint16= 0
+	status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
+
+	ack := map[string] interface{}{
+		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
+		ESCC_MSG_PAR_MSG	:ESCC_MSG_CLOSE,
+		ESCC_MSG_PAR_CSEQ	:cSeq,
+		ESCC_MSG_PAR_FROM	:from,
+		ESCC_MSG_PAR_TO	: to,
+		ESCC_MSG_PAR_CODE 	: ESCC_MSG_CODE_OK,
+		ESCC_MSG_PAR_REASON	:"OK",
+	}
+
+	data, err := json.Marshal(ack)
+	if err != nil {
+		bret = false
+	}
+	datalen := len(data)
+	data = data[:datalen]
+
+	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
+
+	resphear := &CmdHeadInfo{
+		Ver : 0x10,
+		Length:  len_temp,
+		Ttid:  uint32(ttid),
+		Ssrc : uint32(ssrc),
+		Status:  status,
+		Flag:  0x40,
+		Magic:  0xa3c5,
+	}
+
+	head := *(*[]byte)(unsafe.Pointer(resphear))
+	head = append(head,data...)
+	return head,len(head),bret
+}
+
+
 func DecodeUpdateAck(instr string) (string,string,int,) {
 	var from,to,temp string
 	var code int

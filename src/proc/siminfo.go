@@ -38,7 +38,7 @@ type SimInfo struct {
 	RandListPos	int
 }
 
-var gSimInfoList [CMD_CLIENT_MAX_COUNT][SLOT_MAX_COUNT]SimInfo
+var GSimInfoList [CMD_CLIENT_MAX_COUNT][SLOT_MAX_COUNT]SimInfo
 
 
 func SetFrom(from string,slot uint32,clientid uint32)  bool {
@@ -48,7 +48,7 @@ func SetFrom(from string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].From = from
+	GSimInfoList[clientid][slot].From = from
 	return true
 }
 
@@ -60,7 +60,7 @@ func GetFrom(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].From,true
+	return GSimInfoList[clientid][slot].From,true
 }
 
 
@@ -71,7 +71,7 @@ func SetTo(to string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].To = to
+	GSimInfoList[clientid][slot].To = to
 	return true
 }
 
@@ -83,7 +83,7 @@ func GetTo(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].To,true
+	return GSimInfoList[clientid][slot].To,true
 }
 
 
@@ -94,7 +94,7 @@ func SetSimSlot(simslot string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].SimSlot = simslot
+	GSimInfoList[clientid][slot].SimSlot = simslot
 	return true
 }
 
@@ -106,7 +106,7 @@ func GetSimSlot(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].SimSlot,true
+	return GSimInfoList[clientid][slot].SimSlot,true
 }
 
 
@@ -117,7 +117,7 @@ func SetGoipSlot(goiplot string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].GoipSlot = goiplot
+	GSimInfoList[clientid][slot].GoipSlot = goiplot
 	return true
 }
 
@@ -129,7 +129,7 @@ func GetGoipSlot(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].GoipSlot,true
+	return GSimInfoList[clientid][slot].GoipSlot,true
 }
 
 
@@ -140,7 +140,7 @@ func SetIccid(iccid string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].Iccid = iccid
+	GSimInfoList[clientid][slot].Iccid = iccid
 	return true
 }
 
@@ -152,7 +152,7 @@ func GetIccid(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].Iccid,true
+	return GSimInfoList[clientid][slot].Iccid,true
 }
 
 func SetImsi(imsi string,slot uint32,clientid uint32)  bool {
@@ -162,7 +162,7 @@ func SetImsi(imsi string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].Imsi = imsi
+	GSimInfoList[clientid][slot].Imsi = imsi
 	return true
 }
 
@@ -174,7 +174,7 @@ func GetImsi(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].Imsi,true
+	return GSimInfoList[clientid][slot].Imsi,true
 }
 
 
@@ -185,7 +185,7 @@ func SetImei(imei string,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].Imei = imei
+	GSimInfoList[clientid][slot].Imei = imei
 	return true
 }
 
@@ -197,7 +197,7 @@ func GetImei(slot uint32,clientid uint32)  (string,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].Imei,true
+	return GSimInfoList[clientid][slot].Imei,true
 }
 
 
@@ -208,7 +208,7 @@ func SetState(state uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].State = state
+	GSimInfoList[clientid][slot].State = state
 	return true
 }
 
@@ -220,7 +220,7 @@ func GetState(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].State,true
+	return GSimInfoList[clientid][slot].State,true
 }
 
 
@@ -231,7 +231,7 @@ func SetSeq(seq uint16,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].Seq = seq
+	GSimInfoList[clientid][slot].Seq = seq
 	return true
 }
 
@@ -243,7 +243,7 @@ func GetSeq(slot uint32,clientid uint32)  (uint16,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].Seq,true
+	return GSimInfoList[clientid][slot].Seq,true
 }
 
 
@@ -254,7 +254,7 @@ func SetSUpdateTime(updatetime uint64,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].UpdateTime = updatetime
+	GSimInfoList[clientid][slot].UpdateTime = updatetime
 	return true
 }
 
@@ -266,7 +266,7 @@ func GetUpdateTime(slot uint32,clientid uint32)  (uint64,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].UpdateTime,true
+	return GSimInfoList[clientid][slot].UpdateTime,true
 }
 
 
@@ -277,7 +277,7 @@ func SetSimType(simtype uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].SimType = simtype
+	GSimInfoList[clientid][slot].SimType = simtype
 	return true
 }
 
@@ -289,7 +289,7 @@ func GetSimType(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].SimType,true
+	return GSimInfoList[clientid][slot].SimType,true
 }
 
 
@@ -301,7 +301,7 @@ func SetDataClient(dataclient uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].DataClient = dataclient
+	GSimInfoList[clientid][slot].DataClient = dataclient
 	return true
 }
 
@@ -313,7 +313,7 @@ func GetDataClient(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].DataClient,true
+	return GSimInfoList[clientid][slot].DataClient,true
 }
 
 
@@ -324,7 +324,7 @@ func SetCmdClient(cmdclient uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].CmdClient = cmdclient
+	GSimInfoList[clientid][slot].CmdClient = cmdclient
 	return true
 }
 
@@ -336,7 +336,7 @@ func GetCmdClient(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].CmdClient,true
+	return GSimInfoList[clientid][slot].CmdClient,true
 }
 
 
@@ -347,7 +347,7 @@ func SetDataState(datastate uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].DataState = datastate
+	GSimInfoList[clientid][slot].DataState = datastate
 	return true
 }
 
@@ -359,7 +359,7 @@ func GetDataState(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].DataState,true
+	return GSimInfoList[clientid][slot].DataState,true
 }
 
 
@@ -370,7 +370,7 @@ func SetDataStepState(datassteptate uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].DataStepState = datassteptate
+	GSimInfoList[clientid][slot].DataStepState = datassteptate
 	return true
 }
 
@@ -382,7 +382,7 @@ func GetDataStepState(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].DataStepState,true
+	return GSimInfoList[clientid][slot].DataStepState,true
 }
 
 
@@ -393,7 +393,7 @@ func SetErroCount(errorcount uint32,slot uint32,clientid uint32)  bool {
 	if slot>= SLOT_MAX_COUNT {
 		return false
 	}
-	gSimInfoList[clientid][slot].AuthErrorCount = errorcount
+	GSimInfoList[clientid][slot].AuthErrorCount = errorcount
 	return true
 }
 
@@ -405,16 +405,16 @@ func GetErrorCount(slot uint32,clientid uint32)  (uint32,bool) {
 	if slot>= SLOT_MAX_COUNT {
 		return temp,false
 	}
-	return gSimInfoList[clientid][slot].AuthErrorCount,true
+	return GSimInfoList[clientid][slot].AuthErrorCount,true
 }
 
 func GetCmdClientByDataclient(dataclientid uint32)  (uint32,bool) {
 
 	for n:=0;n< CMD_CLIENT_MAX_COUNT;n++{
-		for m :=0 ;m< DATA_CLIENT_MAX_COUNT;m++{
+		for m :=0 ;m< SLOT_MAX_COUNT;m++{
 
-			if gSimInfoList[n][m].DataClient == dataclientid{
-				return gSimInfoList[n][m].CmdClient,true
+			if GSimInfoList[n][m].DataClient == dataclientid{
+				return GSimInfoList[n][m].CmdClient,true
 			}
 		}
 	}
@@ -423,8 +423,8 @@ func GetCmdClientByDataclient(dataclientid uint32)  (uint32,bool) {
 
 func GetSlotByCmdClientDataclient(cmdclientid uint32,dataclientid uint32)  (uint32,bool) {
 
-	for m :=0 ;m< DATA_CLIENT_MAX_COUNT;m++{
-		if gSimInfoList[cmdclientid][m].DataClient == dataclientid {
+	for m :=0 ;m< SLOT_MAX_COUNT;m++{
+		if GSimInfoList[cmdclientid][m].DataClient == dataclientid {
 			return uint32(m),true
 		}
 	}
@@ -443,32 +443,32 @@ func SetRandInfo(slot uint32,clientid uint32,random string,auth string)  (string
 		return "","","",0,-2
 	}
 
-	if gSimInfoList[clientid][slot].SimType == inf.SIM_TYPE_4G && len(auth)<=0 {
+	if GSimInfoList[clientid][slot].SimType == inf.SIM_TYPE_4G && len(auth)<=0 {
 		return "","","",0,-3
 	}
 
 	for n:=0;n< MAX_SAVE_RANDOM_COUNT;n++{
-		if gSimInfoList[clientid][slot].RandList[n].Random == random {
-			if gSimInfoList[clientid][slot].RandList[n].EndTime > 0 {
-				return gSimInfoList[clientid][slot].RandList[n].Sres, gSimInfoList[clientid][slot].RandList[n].Ik, gSimInfoList[clientid][slot].RandList[n].Ck,int32(gSimInfoList[clientid][slot].RandList[n].Result),1
+		if GSimInfoList[clientid][slot].RandList[n].Random == random {
+			if GSimInfoList[clientid][slot].RandList[n].EndTime > 0 {
+				return GSimInfoList[clientid][slot].RandList[n].Sres, GSimInfoList[clientid][slot].RandList[n].Ik, GSimInfoList[clientid][slot].RandList[n].Ck,int32(GSimInfoList[clientid][slot].RandList[n].Result),1
 			}else{
-				return gSimInfoList[clientid][slot].RandList[n].Sres, gSimInfoList[clientid][slot].RandList[n].Ik, gSimInfoList[clientid][slot].RandList[n].Ck,int32(gSimInfoList[clientid][slot].RandList[n].Result),2
+				return GSimInfoList[clientid][slot].RandList[n].Sres, GSimInfoList[clientid][slot].RandList[n].Ik, GSimInfoList[clientid][slot].RandList[n].Ck,int32(GSimInfoList[clientid][slot].RandList[n].Result),2
 			}
 		}
 	}
 
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Random = random
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Auth = auth
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Sres = ""
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Result = 0
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Ik = ""
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Ck = ""
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].StartTime = uint64(time.Now().Unix())
-	gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].EndTime = 0
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Random = random
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Auth = auth
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Sres = ""
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Result = 0
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Ik = ""
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Ck = ""
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].StartTime = uint64(time.Now().Unix())
+	GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].EndTime = 0
 
-	gSimInfoList[clientid][slot].RandListPos++
-	if gSimInfoList[clientid][slot].RandListPos>= MAX_SAVE_RANDOM_COUNT {
-		gSimInfoList[clientid][slot].RandListPos = 0
+	GSimInfoList[clientid][slot].RandListPos++
+	if GSimInfoList[clientid][slot].RandListPos>= MAX_SAVE_RANDOM_COUNT {
+		GSimInfoList[clientid][slot].RandListPos = 0
 	}
 
 	return "","","",0,0
@@ -483,11 +483,11 @@ func SaveAuthResp(slot uint32,clientid uint32,sres string,ik string,ck string,re
 	}
 
 	for n:=0;n< MAX_SAVE_RANDOM_COUNT;n++{
-		if gSimInfoList[clientid][slot].RandList[n].StartTime > 0 && gSimInfoList[clientid][slot].RandList[n].EndTime == 0 {
-			gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Sres = sres
-			gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Ik = ik
-			gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Ck = ck
-			gSimInfoList[clientid][slot].RandList[gSimInfoList[clientid][slot].RandListPos].Result = uint32(result)
+		if GSimInfoList[clientid][slot].RandList[n].StartTime > 0 && GSimInfoList[clientid][slot].RandList[n].EndTime == 0 {
+			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Sres = sres
+			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Ik = ik
+			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Ck = ck
+			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Result = uint32(result)
 			return true
 		}
 	}
@@ -496,8 +496,8 @@ func SaveAuthResp(slot uint32,clientid uint32,sres string,ik string,ck string,re
 
 func FindSimslotByFromTo(clientid uint32,from string,to string) (uint32,bool) {
 	for n:=0;n< MAX_SAVE_RANDOM_COUNT;n++{
-		if gSimInfoList[clientid][n].From == from && gSimInfoList[clientid][n].To == to {
-			slot,_ := strconv.Atoi(gSimInfoList[clientid][n].SimSlot)
+		if GSimInfoList[clientid][n].From == from && GSimInfoList[clientid][n].To == to {
+			slot,_ := strconv.Atoi(GSimInfoList[clientid][n].SimSlot)
 			return uint32(slot),true
 		}
 	}
@@ -512,6 +512,6 @@ func GetSimInfo(slot uint32,clientid uint32) *SimInfo {
 		return nil
 	}
 
-	return &gSimInfoList[clientid][slot]
+	return &GSimInfoList[clientid][slot]
 }
 

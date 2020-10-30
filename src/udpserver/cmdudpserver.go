@@ -106,8 +106,11 @@ func CmdUdpExecProcess()  {
 		t2 := time.Now()
  		if t2.Sub(t1) >1 {
 			CmdTimeout()
+			CheckUpdate()
 			t1 = t2
 		}
+
+
 
 		msg,ok := gCmdUdpRecvFifo.GetEntryFifo()
 		if ok == true{
@@ -493,6 +496,44 @@ func DealUpdateAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 	return true
 }
 
+func CheckUpdate()  {
+	curTime := uint64(time.Now().Unix())
+	for m:=0;m<proc.CMD_CLIENT_MAX_COUNT;m++{
+		for n:=0;n<proc.SLOT_MAX_COUNT;n++{
+			if proc.GSimInfoList[m][n].State == 0 {
+				continue
+			}
+			cmdClientId := m
+			cmdClientInfo,_ := FindCmdClientInfo(int32(cmdClientId))
+			cmdClientInfo.Seq++
+			if cmdClientInfo.Seq == 0 {
+				cmdClientInfo.Seq = 1
+			}
 
+			cmdClientInfo.Tid++
+
+
+			if proc.GSimInfoList[m][n].UpdateTime >0 && proc.GSimInfoList[m][n].UpdateTime+proc.DEFAULT_UPDATE_TIME_INTERVAL<=curTime {
+				proc.GSimInfoList[m][n].UpdateTime = curTime
+				updatestr,_,_:= proc.EncodeUpdate(int(cmdClientInfo.Seq),proc.GSimInfoList[m][n].From,proc.GSimInfoList[m][n].To,n,cmdClientInfo.Tid,cmdClientInfo.Src)
+				gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(cmdClientId),updatestr))
+			}
+
+			if proc.GSimInfoList[m][n].AuthErrorCount>=proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT{
+				proc.GSimInfoList[m][n].AuthErrorCount = 0
+
+				cmdClientInfo.Seq++
+				if cmdClientInfo.Seq == 0 {
+					cmdClientInfo.Seq = 1
+				}
+
+				cmdClientInfo.Tid++
+
+				clsoestr,_,_:= proc.EncodeClose(int(cmdClientInfo.Seq),proc.GSimInfoList[m][n].From,proc.GSimInfoList[m][n].To,n,cmdClientInfo.Tid,cmdClientInfo.Src)
+				gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(cmdClientId),clsoestr))
+			}
+		}
+	}
+}
 
 
