@@ -110,8 +110,6 @@ func CmdUdpExecProcess()  {
 			t1 = t2
 		}
 
-
-
 		msg,ok := gCmdUdpRecvFifo.GetEntryFifo()
 		if ok == true{
 			fmt.Printf("CmdUdpExecProcess fifo msg.key=%d msg.valuses=%s\n",msg.Key,msg.Values)
@@ -139,8 +137,8 @@ func CmdUdpServerRecv(conn *net.UDPConn)  {
 		}
 		buf := [] byte(data[:len])
 		fmt.Printf("CmdUdpServerRecv conn.ReadFromUDP len=%d addr=%v  data=%s\n",len,clientAddr,buf)
-		ss := jsutils.DisplayHexString(buf,3)
-		fmt.Println(ss)
+		//ss := jsutils.DisplayHexString(buf,3)
+		//fmt.Println(ss)
 
 		clientid,ok :=gCmdUdpAddrMap.Load(clientAddr.String())
 		if ok != true {
@@ -237,12 +235,12 @@ func CmdTimeout()  {
 
 			ip,port:=jsutils.GetIpPort(v.(UdpClientInfo).Addrstr)
 
-			gCmdSimCtrlInf.SimClientConnectNotify(int(v.(UdpClientInfo).Clientid),ip,port)
+			gCmdSimCtrlInf.SimClientDisConnectNotify(int(v.(UdpClientInfo).Clientid),ip,port)
 			nClientId,_ :=k.(int32)
 			gDataClientIdArr[nClientId] = 0
 			gCmdUdpClientMap.Delete(k)
 			gCmdUdpAddrMap.Delete(v.(UdpClientInfo).Addrstr)
-			fmt.Printf("delete key=%v value=%v\n",k,v)
+			fmt.Printf("CmdTimeout delete key=%v value=%v\n",k,v)
 			return true
 		}
 		return true

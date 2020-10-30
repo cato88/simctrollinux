@@ -119,11 +119,13 @@ func DataUdpExecProcess()  {
 func DataTimeOut(){
 	gDataUdpClientMap.Range(func(k,v interface{}) bool{
 		if time.Now().Unix() >= (v.(UdpClientInfo).LastTime +gDataClientKeepActiveTime){
+			ip,port:=jsutils.GetIpPort(v.(UdpClientInfo).Addrstr)
+			gDataSimCtrlInf.SimClientDisConnectNotify(int(v.(UdpClientInfo).Clientid),ip,port)
 			gDataUdpClientMap.Delete(k)
 			gDataUdpAddrMap.Delete(v.(UdpClientInfo).Addrstr)
 			nClientId,_ :=k.(int32)
 			gDataClientIdArr[nClientId] = 0
-			fmt.Printf("DataUdpTimeProcess delete key=%v value=%v\n",k,v)
+			fmt.Printf("DataTimeOut delete key=%v value=%v\n",k,v)
 			return true
 		}
 		return true
@@ -329,8 +331,8 @@ func DataUdpServerRecv(conn *net.UDPConn)  {
 		}
 		buf := [] byte(data[:len])
 		fmt.Printf("DataUdpServerRecv conn.ReadFromUDP len=%d addr=%v  data=%s\n",len,clientAddr,buf)
-		ss := jsutils.DisplayHexString(buf,3)
-		fmt.Println(ss)
+		//ss := jsutils.DisplayHexString(buf,3)
+		//fmt.Println(ss)
 
 		clientid,ok :=gDataUdpAddrMap.Load(clientAddr.String())
 		if ok != true {
