@@ -1,11 +1,13 @@
 package proc
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"jsutils"
+	"reflect"
 	"strconv"
 	"unsafe"
 )
@@ -57,14 +59,19 @@ func EncodeAck(header *CmdHeadInfo,flag uint8,status uint16)  ([]byte,int,bool) 
 	resphear := &CmdHeadInfo{
 		Ver : header.Ver,
 		Length:  0,
-		Ttid:  header.Ttid,
-		Ssrc : header.Ssrc,
+		Ttid:  binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ttid)),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ssrc)),
 		Status:  temp,
 		Flag:  header.Flag,
-		Magic:  header.Magic,
+		Magic:  binary.BigEndian.Uint16(jsutils.Uint16ToBytes(header.Magic)),
 	}
 	datalen = int(unsafe.Sizeof(*resphear))
-	data = *(*[]byte)(unsafe.Pointer(resphear))
+	var x reflect.SliceHeader
+	x.Len = datalen
+	x.Cap = datalen
+	x.Data = uintptr(unsafe.Pointer(&resphear))
+	data = *(*[]byte)(unsafe.Pointer(&x))
+
 	data = data[:datalen]
 	return data,datalen,bret
 }
@@ -95,6 +102,7 @@ func DecodeReg(instr string) (int32,int,string,string,bool) {
 	return seq,did,simstate,username,bret
 }
 
+
 func EncodeRegAck(header *CmdHeadInfo,seq int32,did int)  ([]byte,int,bool){
 	var bret bool = false
 	ack := map[string] interface{}{
@@ -114,32 +122,39 @@ func EncodeRegAck(header *CmdHeadInfo,seq int32,did int)  ([]byte,int,bool){
 	datalen := len(data)
 	data = data[:datalen]
 
-	temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(200))
+	//temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(200))
 
 	resphear := &CmdHeadInfo{
 		Ver : header.Ver,
-		Length:  0,
-		Ttid:  header.Ttid,
-		Ssrc : header.Ssrc,
-		Status:  temp,
-		Flag:  header.Flag,
-		Magic:  header.Magic,
+		Length:  uint16(datalen),
+		Ttid:  binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ttid)),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ssrc)),
+		Status:  200,
+		Flag:  0,
+		Magic:  binary.BigEndian.Uint16(jsutils.Uint16ToBytes(header.Magic)),
 	}
-	headlen := int(unsafe.Sizeof(*resphear))+len(data)
-	head := *(*[]byte)(unsafe.Pointer(resphear))
-	head = head[:headlen]
+
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+
+	head := buf.Bytes()[:]
+
+	bret = true
 
 	head = append(head,data...)
 
 	return head,len(head),bret
 }
 
-func EncodeOpen(header *CmdHeadInfo,serverip string,serverport uint16,seq uint16,tid uint32,slot int,username string) ([]byte,int,bool) {
+func EncodeOpen(header *CmdHeadInfo,serverip string,serverport uint16,seq uint32,tid uint32,slot int,username string) ([]byte,int,bool) {
 	var bret bool = false
 
 	var simslot , goipname string
-	simslot = fmt.Sprintf(simslot,"%s.%03d",username,slot)
-	goipname = fmt.Sprintf(simslot,"%s.%03d",username,slot)
+	simslot = fmt.Sprintf("%s.%03d",username,slot)
+	goipname = fmt.Sprintf("%s.%03d",username,slot)
 	ack := map[string] interface{}{
 		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
 		ESCC_MSG_PAR_MSG	:ESCC_MSG_OPEN,
@@ -173,20 +188,23 @@ func EncodeOpen(header *CmdHeadInfo,serverip string,serverport uint16,seq uint16
 	data = data[:datalen]
 
 
-	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
-
 	resphear := &CmdHeadInfo{
 		Ver : header.Ver,
-		Length:  len_temp,
+		Length:  uint16(datalen),
 		Ttid:  tid,
-		Ssrc : header.Ssrc,
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ssrc)),
 		Status:  0,
 		Flag:  0x40,
-		Magic:  header.Magic,
+		Magic:  binary.BigEndian.Uint16(jsutils.Uint16ToBytes(header.Magic)),
 	}
-	headlen := int(unsafe.Sizeof(*resphear))+len(data)
-	head := *(*[]byte)(unsafe.Pointer(resphear))
-	head = head[:headlen]
+
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+	bret = true
+	head := buf.Bytes()[:]
 
 	head = append(head,data...)
 
@@ -215,21 +233,26 @@ func DecodeOpenAck(instr string) (string,string,string,string,string,int,int,int
 
 	contentlength,ok = jsutils.GetJsonStr(instr,ESCC_MSG_PAR_CTT_LEN)
 	if ok == true{
+		fmt.Println("----------->contentlength",contentlength,"<----------------")
 		temp = jsutils.GetStrSlit(contentlength,"/",1)
 		clen,_ = strconv.Atoi(temp)
 
 		temp = jsutils.GetStrSlit(contentlength,"/",2)
 		unclen,_ = strconv.Atoi(temp)
+
+		fmt.Println("clen",clen,"unclen",unclen)
+	}else{
+		fmt.Println("----------->get contentlength  error<----------------")
 	}
 
-	temp,ok = jsutils.GetJsonStr(instr,ESCC_MSG_PAR_CONN_PORT)
+	temp,ok = jsutils.GetJsonStr(instr,ESCC_MSG_PAR_CODE)
 	if ok ==true{
 		code, _ = strconv.Atoi(temp)
 	}
 
 	temp,ok = jsutils.GetJsonStr(instr,ESCC_MSG_PAR_CONN_PORT)
 	if ok ==true{
-		code, _ = strconv.Atoi(temp)
+		remoteport, _ = strconv.Atoi(temp)
 	}
 	if clen>0 && unclen>0 {
 		unpackdata := instr[len(instr)-clen:]
@@ -250,19 +273,25 @@ func EncodeOpenAckAck(header *CmdHeadInfo) ([]byte,int,bool) {
 	var bret bool = false
 
 	var status uint16= 200
-	status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
+	//status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
 
 	resphear := &CmdHeadInfo{
 		Ver : header.Ver,
 		Length:  0,
-		Ttid:  header.Ttid,
-		Ssrc : header.Ssrc,
+		Ttid:  binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ttid)),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ssrc)),
 		Status:  status,
 		Flag:  0x01,
-		Magic:  header.Magic,
+		Magic:  binary.BigEndian.Uint16(jsutils.Uint16ToBytes(header.Magic)),
 	}
 
-	head := *(*[]byte)(unsafe.Pointer(resphear))
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+	bret = true
+	head := buf.Bytes()[:]
 
 	return head,len(head),bret
 }
@@ -295,7 +324,7 @@ func EncodeCloseAck(header *CmdHeadInfo,cSeq int,from string,to string) ([]byte,
 	var bret bool = false
 
 	var status uint16= 200
-	status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
+	//status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
 
 	ack := map[string] interface{}{
 		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
@@ -315,19 +344,26 @@ func EncodeCloseAck(header *CmdHeadInfo,cSeq int,from string,to string) ([]byte,
 	datalen := len(data)
 	data = data[:datalen]
 
-	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
-
 	resphear := &CmdHeadInfo{
 		Ver : header.Ver,
-		Length:  len_temp,
-		Ttid:  header.Ttid,
-		Ssrc : header.Ssrc,
+		Length:  uint16(datalen),
+		Ttid:  binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ttid)),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ssrc)),
 		Status:  status,
 		Flag:  0x00,
-		Magic:  header.Magic,
+		Magic:  binary.BigEndian.Uint16(jsutils.Uint16ToBytes(header.Magic)),
 	}
 
-	head := *(*[]byte)(unsafe.Pointer(resphear))
+
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+
+	head := buf.Bytes()[:]
+
+	bret = true
 	head = append(head,data...)
 	return head,len(head),bret
 }
@@ -369,8 +405,8 @@ func EncodePublishAck(header *CmdHeadInfo,cSeq int,from string,to string,usernam
 
 	var status uint16= 200
 	var simslot string
-	simslot = fmt.Sprintf(simslot,"%s.%03d",username,slot)
-	status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
+	simslot = fmt.Sprintf("%s.%03d",username,slot)
+	//status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
 
 	ack := map[string] interface{}{
 		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
@@ -392,19 +428,27 @@ func EncodePublishAck(header *CmdHeadInfo,cSeq int,from string,to string,usernam
 	datalen := len(data)
 	data = data[:datalen]
 
-	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
+
 
 	resphear := &CmdHeadInfo{
 		Ver : header.Ver,
-		Length:  len_temp,
-		Ttid:  header.Ttid,
-		Ssrc : header.Ssrc,
+		Length:  uint16(datalen),
+		Ttid:  binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ttid)),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(header.Ssrc)),
 		Status:  status,
 		Flag:  0x00,
-		Magic:  header.Magic,
+		Magic:  binary.BigEndian.Uint16(jsutils.Uint16ToBytes(header.Magic)),
 	}
 
-	head := *(*[]byte)(unsafe.Pointer(resphear))
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+
+	head := buf.Bytes()[:]
+
+	bret = true
 	head = append(head,data...)
 	return head,len(head),bret
 }
@@ -440,8 +484,11 @@ func EncodeUpdate(cSeq int,from string,to string,slot int,ttid int32,ssrc int32)
 		ESCC_MSG_PAR_CSEQ	:cSeq,
 		ESCC_MSG_PAR_FROM	:from,
 		ESCC_MSG_PAR_TO	: to,
-		ESCC_MSG_PAR_CODE 	: ESCC_MSG_CODE_OK,
-		ESCC_MSG_PAR_REASON	:"OK",
+		ESCC_MSG_PAR_TYPE:	"KEEPALIVE",
+		ESCC_MSG_PAR_EXPIRES: 120,
+		ESCC_MSG_PAR_SIM_NUM: "",
+		ESCC_MSG_PAR_SIM_SIGNAL: 26,
+		ESCC_MSG_PAR_SIM_BAL 	:  -1,
 	}
 
 	data, err := json.Marshal(ack)
@@ -451,19 +498,26 @@ func EncodeUpdate(cSeq int,from string,to string,slot int,ttid int32,ssrc int32)
 	datalen := len(data)
 	data = data[:datalen]
 
-	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
 
 	resphear := &CmdHeadInfo{
 		Ver : 0x10,
-		Length:  len_temp,
+		Length:  uint16(datalen),
 		Ttid:  uint32(ttid),
-		Ssrc : uint32(ssrc),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(uint32(ssrc))),
 		Status:  status,
 		Flag:  0x40,
-		Magic:  0xa3c5,
+		Magic:  0xc5a3,
 	}
 
-	head := *(*[]byte)(unsafe.Pointer(resphear))
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+
+	head := buf.Bytes()[:]
+
+	bret = true
 	head = append(head,data...)
 	return head,len(head),bret
 }
@@ -492,19 +546,25 @@ func EncodeClose(cSeq int,from string,to string,slot int,ttid int32,ssrc int32) 
 	datalen := len(data)
 	data = data[:datalen]
 
-	len_temp := binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(datalen)))
 
 	resphear := &CmdHeadInfo{
 		Ver : 0x10,
-		Length:  len_temp,
+		Length:  uint16(datalen),
 		Ttid:  uint32(ttid),
-		Ssrc : uint32(ssrc),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(uint32(ssrc))),
 		Status:  status,
 		Flag:  0x40,
-		Magic:  0xa3c5,
+		Magic:  0xc5a3,
 	}
 
-	head := *(*[]byte)(unsafe.Pointer(resphear))
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
+
+	head := buf.Bytes()[:]
+	bret = true
 	head = append(head,data...)
 	return head,len(head),bret
 }
@@ -534,10 +594,10 @@ func EncodeInfoReset(from string,to string,seq int32,slot int,ttid int32,ssrc in
 	var tt = [...]byte {0x11, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00		, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 	tt[0]= byte(slot)
 
-	var dst []byte
 	tt1 := tt[:]
-	base64.StdEncoding.Encode(dst,tt1)
+	dst,_ := jsutils.Base64Encode(tt1, len(tt1))
 
+	//var dst = "BwIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	ack := map[string] interface{}{
 		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
 		ESCC_MSG_PAR_MSG	:ESCC_MSG_INFO,
@@ -546,7 +606,7 @@ func EncodeInfoReset(from string,to string,seq int32,slot int,ttid int32,ssrc in
 		ESCC_MSG_PAR_TO	: to,
 		ESCC_MSG_PAR_TYPE:ESCC_MSG_VAL_CMD,
 		ESCC_MSG_PAR_SMS_CHARSET	:"B64",
-		ESCC_MSG_PAR_DATA:dst,
+		ESCC_MSG_PAR_DATA:string(dst[:]),
 	}
 
 	data, err := json.Marshal(ack)
@@ -558,17 +618,21 @@ func EncodeInfoReset(from string,to string,seq int32,slot int,ttid int32,ssrc in
 
 	resphear := &CmdHeadInfo{
 		Ver : 0x10,
-		Length:  0,
+		Length:  uint16(datalen),
 		Ttid:  uint32(ttid),
-		Ssrc : uint32(ssrc),
+		Ssrc : binary.BigEndian.Uint32(jsutils.Uint32ToBytes(uint32(ssrc))),
 		Status:  0,
 		Flag:  0x40,
-		Magic:  0xa3c5,
+		Magic:  0xc5a3,
 	}
-	headlen := int(unsafe.Sizeof(*resphear))+len(data)
-	head := *(*[]byte)(unsafe.Pointer(resphear))
-	head = head[:headlen]
+	buf := &bytes.Buffer{}
+	eee := binary.Write(buf, binary.BigEndian, resphear)
+	if eee!= nil{
+		panic(eee)
+	}
 
+	head := buf.Bytes()[:]
+	bret = true
 	head = append(head,data...)
 
 	return head,len(head),bret

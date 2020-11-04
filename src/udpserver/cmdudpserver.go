@@ -18,8 +18,14 @@ import (
 
 var gCmdUdpExit int = 0
 
-var gCmdUdpAddrMap sync.Map
-var gCmdUdpClientMap sync.Map
+
+
+
+
+//ar gCmdUdpAddrMap sync.Map
+//var gCmdUdpClientMap sync.Map
+var gCmdUdpClientMap = &ClientIdCLientInfoMap{mutex:new(sync.RWMutex),mp:make(map[int]*UdpClientInfo)}
+var gCmdUdpAddrMap = &AddrClientIdMap{mutex:new(sync.RWMutex),mp:make(map[string]int)}
 
 var gCmdUdpClientPos int32 =  1
 
@@ -67,14 +73,44 @@ func getCmdUdpClientPos()  int32 {
 	return ret
 }
 
+func SetCmdClientInfoSrc(clientid int32,src int32) bool {
+	clientInfo,ok :=gCmdUdpClientMap.MapClientInfoGet(int(clientid))
+	if ok == true {
+		clientInfo.Src = src
+		return true
+	}
+	return false
+}
+
+func SetCmdClientInfoTid(clientid int32,tid int32) bool {
+	clientInfo,ok :=gCmdUdpClientMap.MapClientInfoGet(int(clientid))
+	if ok == true {
+		clientInfo.Tid = tid
+		return true
+	}
+	return false
+}
+
+func SetCmdClientInfoUserName(clientid int32,username string) bool {
+	clientInfo,ok :=gCmdUdpClientMap.MapClientInfoGet(int(clientid))
+	if ok == true {
+		clientInfo.UserName = username
+		return true
+	}
+	return false
+}
+
+func SetCmdClientInfoSeq(clientid int32,seq uint32) bool {
+	clientInfo,ok :=gCmdUdpClientMap.MapClientInfoGet(int(clientid))
+	if ok == true {
+		clientInfo.Seq = int16(seq)
+		return true
+	}
+	return false
+}
 
 func FindCmdClientInfo(clientid int32) (*UdpClientInfo,bool) {
-	clientInfo,ok :=gCmdUdpClientMap.Load(clientid)
-	if ok == true {
-		cc := clientInfo.(UdpClientInfo)
-		return &cc,true
-	}
-	return nil,false
+	return gCmdUdpClientMap.MapClientInfoGet(int(clientid))
 }
 
 func AddCmdFifo(cmdClientId int,instr []byte)  {
@@ -83,16 +119,15 @@ func AddCmdFifo(cmdClientId int,instr []byte)  {
 
 func GetCmdClientIdByClientIp(cmdClientIp string) (int,bool){
 	var cmdClientId int = 0
-	gCmdUdpClientMap.Range(func(k,v interface{}) bool{
-		if v.(UdpClientInfo).ClientIp ==cmdClientIp {
-
-			cmdClientId = int(v.(UdpClientInfo).Clientid)
-			return true
+	gCmdUdpClientMap.mutex.RLock()
+	defer gCmdUdpClientMap.mutex.RUnlock()
+	for _,v := range gCmdUdpClientMap.mp{
+		if v.ClientIp ==cmdClientIp{
+			return int(v.Clientid), true
 		}
-		return true
-	})
+	}
 
-	return cmdClientId,true
+	return cmdClientId,false
 }
 
 
@@ -112,10 +147,10 @@ func CmdUdpExecProcess()  {
 
 		msg,ok := gCmdUdpRecvFifo.GetEntryFifo()
 		if ok == true{
-			fmt.Printf("CmdUdpExecProcess fifo msg.key=%d msg.valuses=%s\n",msg.Key,msg.Values)
+			fmt.Printf("CmdUdpExecProcess fifo msg.key=%d msg.valuses.len=%d\n",msg.Key, len(msg.Values))
 			CmdUdpExec(&msg)
 		}else{
-			time.Sleep(1)
+			time.Sleep(100*time.Millisecond)
 		}
 	}
 }
@@ -136,31 +171,34 @@ func CmdUdpServerRecv(conn *net.UDPConn)  {
 			continue
 		}
 		buf := [] byte(data[:len])
-		fmt.Printf("CmdUdpServerRecv conn.ReadFromUDP len=%d addr=%v  data=%s\n",len,clientAddr,buf)
+		fmt.Printf("CmdUdpServerRecv conn.ReadFromUDP len=%d addr=%v \n",len,clientAddr)
 		//ss := jsutils.DisplayHexString(buf,3)
 		//fmt.Println(ss)
-
-		clientid,ok :=gCmdUdpAddrMap.Load(clientAddr.String())
+		clientid,ok :=gCmdUdpAddrMap.MapClientIdGet(clientAddr.String())
+		//clientid,ok :=gCmdUdpAddrMap.Load(clientAddr.String())
 		if ok != true {
-			clientid = getCmdUdpClientPos();
-			gCmdUdpAddrMap.Store(clientAddr.String(),clientid)
-
+			clientid = int(getCmdUdpClientPos())
+			//gCmdUdpAddrMap.Store(clientAddr.String(),clientid)
+			gCmdUdpAddrMap.MapClientIdSet(clientAddr.String(),clientid)
 			ip,port:=jsutils.GetIpPort(clientAddr.String())
-			nClientId,_ :=clientid.(int32)
-			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:nClientId,LastTime:time.Now().Unix(),ClientIp: ip,ClientPort: int16(port)}
-			gCmdUdpClientMap.Store(clientid,clientinfo)
 
-			fmt.Printf("!!! CmdUdpServerRecv new client_id = %v  addr=%s\n",clientid,clientAddr.String())
-			gCmdUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(nClientId ,buf))
+			//nClientId,_ :=clientid.(int32)
+			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:int32(clientid),LastTime:time.Now().Unix(),ClientIp: ip,ClientPort: int16(port),Seq: 1,Tid: 1}
+			//gCmdUdpClientMap.Store(clientid,clientinfo)
+			gCmdUdpClientMap.MapClientInfoSet(clientid,&clientinfo)
 
-			gCmdSimCtrlInf.SimClientConnectNotify(int(nClientId),ip,port)
+			fmt.Println("!!! CmdUdpServerRecv add ",clientinfo)
+			gCmdUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
+
+			gCmdSimCtrlInf.SimClientConnectNotify(clientid,ip,port)
 		}else {
-			nClientId,_ :=clientid.(int32)
-			clientinfo,ok1 := FindCmdClientInfo(nClientId)
+			//nClientId,_ :=clientid.(int32)
+			//clientinfo,ok1 := FindCmdClientInfo(nClientId)
+			clientinfo,ok1 :=FindCmdClientInfo(int32(clientid))
 			if ok1 == true{
 				clientinfo.LastTime = time.Now().Unix();
 				fmt.Printf("CmdUdpServerRecv mutil client_id = %v  addr=%s\n",clientid,clientAddr.String())
-				gCmdUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(nClientId,buf))
+				gCmdUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
 			}
 		}
 	}
@@ -187,7 +225,7 @@ func CmdUdpServerSend(conn *net.UDPConn)  {
 			}
 
 		}else{
-			time.Sleep(1)
+			time.Sleep(100*time.Millisecond)
 		}
 	}
 }
@@ -230,6 +268,22 @@ func UdpCmdServerRelease()  {
 }
 
 func CmdTimeout()  {
+
+	gCmdUdpClientMap.mutex.RLock()
+	defer gCmdUdpClientMap.mutex.RUnlock()
+	for key,v := range gCmdUdpClientMap.mp{
+		if time.Now().Unix() >=  (v.LastTime+gCmdClientKeepActiveTime){
+			ip,port:=jsutils.GetIpPort(v.Addrstr)
+			gCmdSimCtrlInf.SimClientDisConnectNotify(int(v.Clientid),ip,port)
+			gCmdClientIdArr[key] = 0
+			delete(gCmdUdpAddrMap.mp, v.Addrstr)
+			delete(gCmdUdpClientMap.mp,key )
+			fmt.Printf("CmdTimeout delete key=%v value=%v\n",key,v)
+		}
+	}
+}
+/*
+func CmdTimeout()  {
 	gCmdUdpClientMap.Range(func(k,v interface{}) bool{
 		if time.Now().Unix() >= (v.(UdpClientInfo).LastTime +gCmdClientKeepActiveTime){
 
@@ -246,7 +300,7 @@ func CmdTimeout()  {
 		return true
 	})
 }
-
+*/
 func CmdUdpExec(msg *jsutils.EntryFifo)  {
 	clientid := msg.Key
 	data := msg.Values
@@ -276,6 +330,7 @@ func CmdUdpExec(msg *jsutils.EntryFifo)  {
 	case proc.ESCC_MSG_REG:
 		DealReg(clientid,header,msgdata)
 	case proc.ESCC_MSG_OPEN_ACK:
+		fmt.Println("switch retstr",retstr)
 		DealOpenAck(clientid,header,msgdata)
 	case proc.ESCC_MSG_CLOSE:
 		DealClose(clientid,header,msgdata)
@@ -301,11 +356,15 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 		return false
 	}
 
+
+	ssrc := header.Ssrc
+
+
 	clientinfo,ok1 := FindCmdClientInfo(clientid)
 	if ok1 == true{
-		clientinfo.Src = int32(header.Ssrc)
-		clientinfo.Tid = int32(header.Ttid)
-		clientinfo.UserName = username
+
+		SetCmdClientInfoSrc(clientid,int32(ssrc))
+		SetCmdClientInfoUserName(clientid,username)
 
 		regack,regacklen,ok2 :=proc.EncodeRegAck(header,seq,did)
 		if ok2 == true{
@@ -316,6 +375,12 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 	}else {
 		return false
 	}
+
+	clientinfo,_ = FindCmdClientInfo(clientid)
+
+
+
+	fmt.Println("DealReg1 cseq",clientinfo.Seq,"ttid",clientinfo.Tid)
 
 	for i:=0;i<len(simregstate);i++{
 
@@ -335,14 +400,19 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 			if simstate == inf.SIM_STATE_IDLE || simstate == inf.SIM_STATE_DISABLE {
 				proc.SetState(inf.SIM_STATE_DISABLE,slot,uint32(clientid))
 				proc.SetErroCount(0,slot,uint32(clientid))
-				clientinfo.Tid++
-				clientinfo.Seq++
-			}
-			openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort,clientinfo.Seq,uint32(clientinfo.Tid),int(slot),username)
-			if ok3 {
-				openstr = openstr[:openlen]
-				gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
-				gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype),clientinfo.ClientIp)
+
+				jsutils.GetNext32(&clientinfo.Tid)
+
+				jsutils.GetNext16(&clientinfo.Seq)
+
+
+				fmt.Println("DealReg2 cseq",clientinfo.Seq,"ttid",clientinfo.Tid)
+				openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort, uint32(clientinfo.Seq),uint32(clientinfo.Tid),int(slot),username)
+				if ok3 {
+					openstr = openstr[:openlen]
+					gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
+					gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype),clientinfo.ClientIp)
+				}
 			}
 		}
 	}
@@ -369,8 +439,23 @@ func DealOpenAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 		openackack = openackack[:openackacklen]
 		gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openackack))
 	}
+	dataclientid,_:=findDataClientByRemoteIpPort(remoteip, remoteport)
+	proc.SetDataClient(uint32(dataclientid),uint32(slot), uint32(clientid))
 
-	proc.SetDataClient(uint32(findDataClientByRemoteIpPort(remoteip, remoteport)),uint32(slot), uint32(clientid))
+	cmdClientInfo,ok := FindCmdClientInfo(int32(clientid))
+	if ok == false{
+		return false
+	}
+
+	fmt.Println("DealOpenAck cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
+	jsutils.GetNext32(&cmdClientInfo.Tid)
+	jsutils.GetNext16(&cmdClientInfo.Seq)
+	fmt.Println("DealOpenAck EncodeInfoReset cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
+	retstr,_,ok3 :=proc.EncodeInfoReset(from,to, int32(cmdClientInfo.Seq),slot,cmdClientInfo.Tid,cmdClientInfo.Src)
+	if ok3 == true{
+		AddCmdFifo(int(clientid),retstr)
+		return true
+	}
 
 	return true
 }
@@ -413,6 +498,9 @@ func DealPublish(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 		}
 
 		cmdClientInfo,ok := FindCmdClientInfo(int32(clientid))
+		if ok == false{
+			return false
+		}
 		cmdClientIp := cmdClientInfo.ClientIp
 		proc.SetState(inf.SIM_STATE_IDLE,uint32(slot), uint32(clientid))
 		gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_IDLE,int(simtype),cmdClientIp)
@@ -434,20 +522,23 @@ func DealCloseAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 			CloseDataClient(int(dataclient))
 		}
 
-		cmdClientInfo,_ := FindCmdClientInfo(int32(clientid))
+		cmdClientInfo,err := FindCmdClientInfo(int32(clientid))
+		if err == false{
+			return false
+		}
 		cmdClientIp := cmdClientInfo.ClientIp
 		proc.SetState(inf.SIM_STATE_DISABLE,slot, uint32(clientid))
 
 		gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype),cmdClientIp)
 
-		cmdClientInfo.Seq++;
-		cmdClientInfo.Tid++;
-		if cmdClientInfo.Seq == 0 {
-			cmdClientInfo.Seq = 1
-		}
+		fmt.Println("DealCloseAck cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 
+		jsutils.GetNext32(&cmdClientInfo.Tid)
+		jsutils.GetNext16(&cmdClientInfo.Seq)
+
+		fmt.Println("DealCloseAck EncodeOpen cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 		//reopen
-		openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort,cmdClientInfo.Seq,uint32(cmdClientInfo.Tid),int(slot),cmdClientInfo.UserName)
+		openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort, uint32(cmdClientInfo.Seq),uint32(cmdClientInfo.Tid),int(slot),cmdClientInfo.UserName)
 		if ok3 {
 			openstr = openstr[:openlen]
 			gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
@@ -458,37 +549,42 @@ func DealCloseAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 }
 
 func DealUpdateAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
-	from,to,_ := proc.DecodeUpdateAck(instr)
+	from,to,code := proc.DecodeUpdateAck(instr)
+	if code == 200{
+		return true
+	}
+
 	slot,ok := proc.FindSimslotByFromTo(uint32(clientid),from,to)
 	if ok == true {
-		proc.SetErroCount(0,slot, uint32(clientid))
-		imsi,_:= proc.GetImsi(slot, uint32(clientid))
-		simtype,_:= proc.GetSimType(slot, uint32(clientid))
-		simstate,_:= proc.GetSimType(slot, uint32(clientid))
 
-		if simstate == inf.SIM_STATE_USABLE{
-			dataclient,_ := proc.GetDataClient(slot, uint32(clientid))
-			CloseDataClient(int(dataclient))
+		siminfo := proc.GetSimInfo(slot, uint32(clientid))
+		if siminfo == nil{
+			return false
 		}
 
-		cmdClientInfo,_ := FindCmdClientInfo(int32(clientid))
-		cmdClientIp := cmdClientInfo.ClientIp
-		proc.SetState(inf.SIM_STATE_DISABLE,slot, uint32(clientid))
+		imsi := siminfo.Imsi
+		simtype := siminfo.SimType
+		lststate := siminfo.State
+		if lststate == inf.SIM_STATE_USABLE {
+			dataClientId := siminfo.DataClient
+			CloseDataClient(int(dataClientId))
+			siminfo.State = inf.SIM_STATE_DISABLE
+			cmdClientInfo,ok := FindCmdClientInfo(clientid)
+			if ok == true {
+				gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype), cmdClientInfo.ClientIp)
+				jsutils.GetNext32(&cmdClientInfo.Tid)
+				jsutils.GetNext16(&cmdClientInfo.Seq)
 
-		gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype),cmdClientIp)
+				//reopen
+				openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort, uint32(cmdClientInfo.Seq),uint32(cmdClientInfo.Tid),int(slot),cmdClientInfo.UserName)
+				if ok3 {
+					openstr = openstr[:openlen]
+					gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
+				}
+			}
 
-		cmdClientInfo.Seq++;
-		cmdClientInfo.Tid++;
-		if cmdClientInfo.Seq == 0 {
-			cmdClientInfo.Seq = 1
 		}
 
-		//reopen
-		openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort,cmdClientInfo.Seq,uint32(cmdClientInfo.Tid),int(slot),cmdClientInfo.UserName)
-		if ok3 {
-			openstr = openstr[:openlen]
-			gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
-		}
 
 	}
 	return true
@@ -497,22 +593,30 @@ func DealUpdateAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 func CheckUpdate()  {
 	curTime := uint64(time.Now().Unix())
 	for m:=0;m<proc.CMD_CLIENT_MAX_COUNT;m++{
+		cmdClientId := m
+		cmdClientInfo,err := FindCmdClientInfo(int32(cmdClientId))
+		if err == false {
+			continue
+		}
+
 		for n:=0;n<proc.SLOT_MAX_COUNT;n++{
 			if proc.GSimInfoList[m][n].State == 0 {
 				continue
 			}
-			cmdClientId := m
-			cmdClientInfo,_ := FindCmdClientInfo(int32(cmdClientId))
-			cmdClientInfo.Seq++
-			if cmdClientInfo.Seq == 0 {
-				cmdClientInfo.Seq = 1
+
+			if err == false{
+				continue
 			}
 
-			cmdClientInfo.Tid++
+
 
 
 			if proc.GSimInfoList[m][n].UpdateTime >0 && proc.GSimInfoList[m][n].UpdateTime+proc.DEFAULT_UPDATE_TIME_INTERVAL<=curTime {
 				proc.GSimInfoList[m][n].UpdateTime = curTime
+				fmt.Println("CheckUpdate cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
+				jsutils.GetNext32(&cmdClientInfo.Tid)
+				jsutils.GetNext16(&cmdClientInfo.Seq)
+				fmt.Println("CheckUpdate 2 cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 				updatestr,_,_:= proc.EncodeUpdate(int(cmdClientInfo.Seq),proc.GSimInfoList[m][n].From,proc.GSimInfoList[m][n].To,n,cmdClientInfo.Tid,cmdClientInfo.Src)
 				gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(cmdClientId),updatestr))
 			}
@@ -520,13 +624,10 @@ func CheckUpdate()  {
 			if proc.GSimInfoList[m][n].AuthErrorCount>=proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT{
 				proc.GSimInfoList[m][n].AuthErrorCount = 0
 
-				cmdClientInfo.Seq++
-				if cmdClientInfo.Seq == 0 {
-					cmdClientInfo.Seq = 1
-				}
-
-				cmdClientInfo.Tid++
-
+				fmt.Println("CheckUpdate 3 cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
+				jsutils.GetNext32(&cmdClientInfo.Tid)
+				jsutils.GetNext16(&cmdClientInfo.Seq)
+				fmt.Println("CheckUpdate 4 cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 				clsoestr,_,_:= proc.EncodeClose(int(cmdClientInfo.Seq),proc.GSimInfoList[m][n].From,proc.GSimInfoList[m][n].To,n,cmdClientInfo.Tid,cmdClientInfo.Src)
 				gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(cmdClientId),clsoestr))
 			}

@@ -3,6 +3,7 @@ package udpserver
 import (
 	"inf"
 	"net"
+	"sync"
 )
 
 type UdpClientInfo struct {
@@ -14,7 +15,7 @@ type UdpClientInfo struct {
 	ClientIp		string
 	ClientPort		int16
 
-	Seq				uint16
+	Seq				int16
 	Src				int32
 	Tid				int32
 	UserName		string
@@ -33,3 +34,52 @@ func UdpServerInit(ip string,cmdport int,dataport int,ctrol inf.SimCtroler) int 
 	return UdpDataServerInit(ip,dataport,ctrol)
 }
 
+
+
+
+type ClientIdCLientInfoMap struct{
+	mutex *sync.RWMutex
+	mp map[int]*UdpClientInfo
+}
+
+func (this *ClientIdCLientInfoMap) MapClientInfoGet(key int)  (*UdpClientInfo,bool){
+	this.mutex.RLock()
+	ret,ok:=this.mp[key]
+	this.mutex.RUnlock()
+	if ok == false{
+		return nil,false
+	}
+	return ret,true
+}
+
+func (this *ClientIdCLientInfoMap) MapClientInfoSet(key int,info *UdpClientInfo)  bool{
+	this.mutex.RLock()
+	defer this.mutex.RUnlock()
+	this.mp[key] = info
+	return true
+}
+
+
+
+type AddrClientIdMap struct {
+	mutex *sync.RWMutex
+	mp map[string]int
+}
+
+
+func (this *AddrClientIdMap) MapClientIdGet(key string)  (int,bool){
+	this.mutex.RLock()
+	ret,ok:=this.mp[key]
+	this.mutex.RUnlock()
+	if ok == false{
+		return 0,false
+	}
+	return ret,true
+}
+
+func (this *AddrClientIdMap) MapClientIdSet(key string,info int)  bool{
+	this.mutex.RLock()
+	defer this.mutex.RUnlock()
+	this.mp[key] = info
+	return true
+}

@@ -11,9 +11,11 @@ import (
 type SimInterfaceStruct struct {
 }
 
+var g_cmdclientip string
 
 func (sim *SimInterfaceStruct) SimClientConnectNotify  (clientid int,clientip string,clientport int){
 	fmt.Printf("SimClientConnectNotify clientid=%d clientip=%s clientport=%d\n",clientid,clientip,clientport)
+	g_cmdclientip = clientip
 
 }
 
@@ -41,10 +43,12 @@ func main() {
 
 
 	for {
-		var randstr string = "b93011f0874d02e5a2a7703596631dcb"
-		var imsi string = "460028671303247"
-		sim.Auth(1,imsi,randstr,"","210.32.1.229")
-		time.Sleep(10000)
-	}
+		time.Sleep(20*time.Second)
 
+		var randstr string = "b93011f0874d02e5a2a7703596631dcb"
+		//var imsi string = "460078571900404"
+		var imsi string = "460005562309046"
+		sim.Auth(7,imsi,randstr,"",g_cmdclientip)
+
+	}
 }

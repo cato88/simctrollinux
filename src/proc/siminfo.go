@@ -1,6 +1,7 @@
 package proc
 
 import (
+	"fmt"
 	"inf"
 	"strconv"
 	"time"
@@ -484,10 +485,12 @@ func SaveAuthResp(slot uint32,clientid uint32,sres string,ik string,ck string,re
 
 	for n:=0;n< MAX_SAVE_RANDOM_COUNT;n++{
 		if GSimInfoList[clientid][slot].RandList[n].StartTime > 0 && GSimInfoList[clientid][slot].RandList[n].EndTime == 0 {
-			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Sres = sres
-			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Ik = ik
-			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Ck = ck
-			GSimInfoList[clientid][slot].RandList[GSimInfoList[clientid][slot].RandListPos].Result = uint32(result)
+			GSimInfoList[clientid][slot].RandList[n].Sres = sres
+			GSimInfoList[clientid][slot].RandList[n].Ik = ik
+			GSimInfoList[clientid][slot].RandList[n].Ck = ck
+			GSimInfoList[clientid][slot].RandList[n].Result = uint32(result)
+			GSimInfoList[clientid][slot].RandList[n].EndTime = uint64(time.Now().Unix())
+			fmt.Println("SaveAuthResp",slot,clientid,sres,ik,ck,result)
 			return true
 		}
 	}

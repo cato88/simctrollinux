@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"fmt"
 	"inf"
 	"proc"
 	"udpserver"
@@ -44,23 +45,28 @@ func ReleaseSimCtrol()  {
 ******************************************************************/
 func Auth(slot int,imsi string,randstr string,autn string,clientip string) int{
 
-	cmdClientId,ok := udpserver.GetCmdClientIdByClientIp(clientip)
-	if ok == true{
+	fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s\n",slot,imsi,randstr,autn,clientip)
+
+	cmdClientId,_ := udpserver.GetCmdClientIdByClientIp(clientip)
+	if cmdClientId >0{
 		simType,ok := proc.GetSimType(uint32(slot), uint32(cmdClientId))
 		if ok == false {
+			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s proc.GetSimType error\n",slot,imsi,randstr,autn,clientip)
 			return -1
 		}
 
 		dataClientId,ok:= proc.GetDataClient(uint32(slot), uint32(cmdClientId))
 		if ok == false {
-			return -1
+			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s proc.GetDataClient error\n",slot,imsi,randstr,autn,clientip)
+			return -2
 		}
 
 		simInfo := proc.GetSimInfo(uint32(slot), uint32(cmdClientId))
 		simInfo.AuthErrorCount++
 
 		if simInfo.AuthErrorCount >= proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT {
-			return -4
+			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s AuthErrorCount>=%d error\n",slot,imsi,randstr,autn,clientip,proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT)
+			return -3
 		}
 
 		sres,ik,ck,result,ret  := proc.SetRandInfo(uint32(slot), uint32(cmdClientId),randstr,autn)
@@ -68,24 +74,30 @@ func Auth(slot int,imsi string,randstr string,autn string,clientip string) int{
 		if ret <0 {	//失败
 			return -5
 		}else if ret ==1 {//重复鉴权,有结果
+			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s ok retturn result=%d sres=%s ck=%s ik=%s\n",slot,imsi,randstr,autn,clientip,int(result),sres,ck,ik)
 			udpserver.GSimCtrlInf.AuthResult(slot,imsi, int(result),sres,ck,ik, clientip)
+			simInfo.AuthErrorCount = 0
 			return 0
 
 		}else if ret == 2 {	//重复鉴权,无结果
+			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s error, repeat auth and no answer\n",slot,imsi,randstr,autn,clientip)
 			return 0
 		}
 		//新鉴权
 		dataClientInfo,ok := udpserver.FindDataClientInfo(int32(dataClientId))
 		if ok != true{
+			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s dataClientId=%d FindDataClientInfo error\n",slot,imsi,randstr,autn,clientip,int32(dataClientId))
 			return -6
 		}
+
+
 AUTH2:	if simType == inf.SIM_TYPE_2G {
 			dataClientInfo.Seq++
 			if dataClientInfo.Seq == 0{
 				dataClientInfo.Seq = 1
 			}
-
-			authdata,ok := proc.EncodeAuth2GStep1(randstr,dataClientInfo.Seq)
+			udpserver.SetDataClientInfoSeq(int32(dataClientId), uint32(dataClientInfo.Seq))
+			authdata,ok := proc.EncodeAuth2GStep1(randstr, uint16(dataClientInfo.Seq))
 			if ok == true{
 				udpserver.AddDataFifo(int(dataClientId),authdata)
 
@@ -104,8 +116,9 @@ AUTH2:	if simType == inf.SIM_TYPE_2G {
 			if dataClientInfo.Seq == 0{
 				dataClientInfo.Seq = 1
 			}
+			udpserver.SetDataClientInfoSeq(int32(dataClientId), uint32(dataClientInfo.Seq))
 
-			authdata,ok := proc.EncodeAuth4GStep1(randstr,autn,dataClientInfo.Seq)
+			authdata,ok := proc.EncodeAuth4GStep1(randstr,autn, uint16(dataClientInfo.Seq))
 			if ok == true{
 				udpserver.AddDataFifo(int(dataClientId),authdata)
 
@@ -114,6 +127,8 @@ AUTH2:	if simType == inf.SIM_TYPE_2G {
 				return 0
 			}
 		}
+	}else{
+		fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s error, not found clientid by clientip\n",slot,imsi,randstr,autn,clientip)
 	}
 	return 0
 }
@@ -151,8 +166,12 @@ func ReSet(slot int,clientip string)  int{
 
 		simInfo := proc.GetSimInfo(uint32(slot), uint32(cmdClientId))
 
-		cmdClientInfo,_ := udpserver.FindCmdClientInfo(int32(cmdClientId))
+		cmdClientInfo,ok1 := udpserver.FindCmdClientInfo(int32(cmdClientId))
+		if ok1 == false {
+			return -1
+		}
 
+		cmdClientInfo.Tid++
 		cmdClientInfo.Seq++
 		if cmdClientInfo.Seq == 0{
 			cmdClientInfo.Seq = 1
