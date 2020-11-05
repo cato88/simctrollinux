@@ -1,7 +1,10 @@
 package jsutils
 
 import (
+	"bytes"
+	"compress/zlib"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -261,5 +264,14 @@ func GetNext32(in *int32) int32 {
 		*in = 1
 	}
 	return *in
+}
+
+func MyZlibUnCompress(src []byte) []byte {
+	b := bytes.NewReader(src)
+	var out bytes.Buffer
+	r, _ := zlib.NewReader(b)
+	io.Copy(&out, r)
+	return out.Bytes()
+	
 }
 

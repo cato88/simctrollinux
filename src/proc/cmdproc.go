@@ -2,7 +2,6 @@ package proc
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -257,9 +256,8 @@ func DecodeOpenAck(instr string) (string,string,string,string,string,int,int,int
 	if clen>0 && unclen>0 {
 		unpackdata := instr[len(instr)-clen:]
 		var srcdata []byte = []byte(unpackdata)
-		var dst []byte
-		decodeBytes, err :=base64.StdEncoding.Decode(dst,srcdata)
-		if err == nil && decodeBytes>=16 {
+		dst := jsutils.MyZlibUnCompress(srcdata)
+		if len(dst)>=16 {
 			tt := dst[12:16]
 			simtype = int(binary.BigEndian.Uint32(tt))
 		}
