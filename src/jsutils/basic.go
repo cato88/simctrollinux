@@ -250,7 +250,7 @@ func Base64Decode(data []byte, data_len int) ([]byte,bool) {
 	return ret,true
 }
 
-func GetNext16(in *int16) int16 {
+func GetNext16(in *uint16) uint16 {
 	*in++
 	if *in == 0 {
 		*in = 1
@@ -258,7 +258,7 @@ func GetNext16(in *int16) int16 {
 	return *in
 }
 
-func GetNext32(in *int32) int32 {
+func GetNext32(in *uint32) uint32 {
 	*in++
 	if *in == 0 {
 		*in = 1

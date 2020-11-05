@@ -91,7 +91,7 @@ func findDataClientByRemoteIpPort(remoteIp string,remotePort int) (int,bool){
 func SetDataClientInfoSeq(clientid int32,seq uint32) bool {
 	clientInfo,ok := gDataUdpClientMap.MapClientInfoGet(int(clientid))
 	if ok == true {
-		clientInfo.Seq = int16(seq)
+		clientInfo.Seq = uint16(seq)
 		return true
 	}
 	return false
@@ -147,8 +147,8 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 		return
 	}
 
-	var rspindex int16
-	rspindex = int16(data[0]) * 256 + int16(data[1])
+	var rspindex uint16
+	rspindex = uint16(data[0]) * 256 + uint16(data[1])
 
 	ss := jsutils.DisplayHexString(data,3)
 	fmt.Println("DataUdpExec ss",ss)
@@ -366,8 +366,8 @@ func DataUdpServerRecv(conn *net.UDPConn)  {
 		}
 		buf := [] byte(data[:len])
 		fmt.Printf("DataUdpServerRecv conn.ReadFromUDP len=%d addr=%v\n",len,clientAddr)
-		ss := jsutils.DisplayHexString(buf,3)
-		fmt.Println(ss)
+		//ss := jsutils.DisplayHexString(buf,3)
+		//fmt.Println(ss)
 
 
 		clientid,ok :=gDataUdpAddrMap.MapClientIdGet(clientAddr.String())
@@ -405,7 +405,7 @@ func DataUdpServerSend(conn *net.UDPConn)  {
 
 		msg,ok := gDataUdpSendFifo.GetEntryFifo()
 		if ok == true{
-			fmt.Printf("DataUdpServerSend fifo msg.key=%d msg.valuses.len=%s\n",msg.Key, len(msg.Values))
+			fmt.Printf("DataUdpServerSend fifo msg.key=%d msg.valuses.len=%d\n",msg.Key, len(msg.Values))
 			clientinfo,ok := FindDataClientInfo(msg.Key)
 			if ok  == true {
 				_,err := conn.WriteToUDP([]byte(msg.Values),clientinfo.Conn)

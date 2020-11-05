@@ -15,9 +15,9 @@ type UdpClientInfo struct {
 	ClientIp		string
 	ClientPort		int16
 
-	Seq				int16
+	Seq				uint16
 	Src				int32
-	Tid				int32
+	Tid				uint32
 	UserName		string
 }
 

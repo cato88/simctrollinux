@@ -179,7 +179,7 @@ func ReSet(slot int,clientip string)  int{
 
 		from := simInfo.From
 		to := simInfo.To
-		retstr,_,ok3 :=proc.EncodeInfoReset(from,to, int32(cmdClientInfo.Seq),slot,cmdClientInfo.Tid,cmdClientInfo.Src)
+		retstr,_,ok3 :=proc.EncodeInfoReset(from,to, int32(cmdClientInfo.Seq),slot, int32(cmdClientInfo.Tid),cmdClientInfo.Src)
 		if ok3 == true{
 			udpserver.AddCmdFifo(cmdClientId,retstr)
 			return 0
