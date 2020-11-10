@@ -39,6 +39,7 @@ var gCmdUdpServerPort uint16
 
 var gCmdClientIdArr  [proc.CMD_CLIENT_MAX_COUNT+1] int32
 
+
 var gCmdSimCtrlInf inf.SimCtroler
 
 ///////////////////////////////////////////////////////////
@@ -147,7 +148,7 @@ func CmdUdpExecProcess()  {
 
 		msg,ok := gCmdUdpRecvFifo.GetEntryFifo()
 		if ok == true{
-			fmt.Printf("CmdUdpExecProcess fifo msg.key=%d msg.valuses.len=%d\n",msg.Key, len(msg.Values))
+			//fmt.Printf("CmdUdpExecProcess fifo msg.key=%d msg.valuses.len=%d value=%s\n",msg.Key, len(msg.Values),msg.Values)
 			CmdUdpExec(&msg)
 		}else{
 			time.Sleep(100*time.Millisecond)
@@ -158,20 +159,20 @@ func CmdUdpExecProcess()  {
 
 func CmdUdpServerRecv(conn *net.UDPConn)  {
 
-	data := make([]byte,9999)
+
 
 	for{
 		if gCmdUdpExit != 0 {
 			return
 		}
-
+		data := make([]byte,9999)
 		len,clientAddr,err :=conn.ReadFromUDP(data)
 
 		if err != nil {
 			continue
 		}
 		buf := [] byte(data[:len])
-		fmt.Printf("CmdUdpServerRecv conn.ReadFromUDP len=%d addr=%v \n",len,clientAddr)
+		//fmt.Printf("CmdUdpServerRecv conn.ReadFromUDP len=%d addr=%v value=%s\n",len,clientAddr,buf)
 		//ss := jsutils.DisplayHexString(buf,3)
 		//fmt.Println(ss)
 		clientid,ok :=gCmdUdpAddrMap.MapClientIdGet(clientAddr.String())
@@ -183,7 +184,7 @@ func CmdUdpServerRecv(conn *net.UDPConn)  {
 			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:int32(clientid),LastTime:time.Now().Unix(),ClientIp: ip,ClientPort: int16(port),Seq: 1,Tid: 1}
 			gCmdUdpClientMap.MapClientInfoSet(clientid,&clientinfo)
 
-			fmt.Println("!!! CmdUdpServerRecv add ",clientinfo)
+			jsutils.Fatal("!!! CmdUdpServerRecv add ",clientinfo)
 			gCmdUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
 
 			gCmdSimCtrlInf.SimClientConnectNotify(clientid,ip,port)
@@ -191,7 +192,6 @@ func CmdUdpServerRecv(conn *net.UDPConn)  {
 			clientinfo,ok1 :=FindCmdClientInfo(int32(clientid))
 			if ok1 == true{
 				clientinfo.LastTime = time.Now().Unix();
-				fmt.Printf("CmdUdpServerRecv mutil client_id = %v  addr=%s\n",clientid,clientAddr.String())
 				gCmdUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
 			}
 		}
@@ -214,7 +214,7 @@ func CmdUdpServerSend(conn *net.UDPConn)  {
 			if ok  == true {
 				_,err := conn.WriteToUDP([]byte(msg.Values),clientinfo.Conn)
 				if err != nil{
-					fmt.Println("CmdUdpServerSend WriteToUDP err="+err.Error() )
+					jsutils.Fatal("CmdUdpServerSend WriteToUDP err="+err.Error() )
 				}
 			}
 
@@ -230,18 +230,18 @@ func UdpCmdServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
 	addrStr = fmt.Sprintf("%s:%d",ip,cmdport)
 	gCmdUdpServerIp = ip
 	gCmdUdpServerPort = uint16(cmdport)
-	fmt.Println("UdpServerInit addrInfo = "+addrStr)
+	jsutils.Fatal("UdpServerInit addrInfo = "+addrStr)
 	gCmdSimCtrlInf = ctrol
 
 	udpAddr,err := net.ResolveUDPAddr("udp",addrStr)
 	if err != nil{
-		fmt.Println("UdpServerInit ResolveUDPAddr err="+err.Error())
+		jsutils.Fatal("UdpServerInit ResolveUDPAddr err="+err.Error())
 		os.Exit(1)
 	}
 
 	conn,err:=net.ListenUDP("udp",udpAddr)
 	if err != nil{
-		fmt.Println("UdpServerInit ListenUDP err="+err.Error())
+		jsutils.Fatal("UdpServerInit ListenUDP err="+err.Error())
 		os.Exit(2)
 	}
 
@@ -252,7 +252,7 @@ func UdpCmdServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
 	go CmdUdpServerRecv(conn)
 	go CmdUdpServerSend(conn)
 	go CmdUdpExecProcess()
-
+	jsutils.Fatal("UdpServerInit ok")
 
 	return 0
 }
@@ -272,32 +272,16 @@ func CmdTimeout()  {
 			gCmdClientIdArr[key] = 0
 			delete(gCmdUdpAddrMap.mp, v.Addrstr)
 			delete(gCmdUdpClientMap.mp,key )
-			fmt.Printf("CmdTimeout delete key=%v value=%v\n",key,v)
+			jsutils.Fatal("---CmdTimeout delete key=",key,"value=",v)
 		}
 	}
 }
-/*
-func CmdTimeout()  {
-	gCmdUdpClientMap.Range(func(k,v interface{}) bool{
-		if time.Now().Unix() >= (v.(UdpClientInfo).LastTime +gCmdClientKeepActiveTime){
 
-			ip,port:=jsutils.GetIpPort(v.(UdpClientInfo).Addrstr)
-
-			gCmdSimCtrlInf.SimClientDisConnectNotify(int(v.(UdpClientInfo).Clientid),ip,port)
-			nClientId,_ :=k.(int32)
-			gDataClientIdArr[nClientId] = 0
-			gCmdUdpClientMap.Delete(k)
-			gCmdUdpAddrMap.Delete(v.(UdpClientInfo).Addrstr)
-			fmt.Printf("CmdTimeout delete key=%v value=%v\n",k,v)
-			return true
-		}
-		return true
-	})
-}
-*/
 func CmdUdpExec(msg *jsutils.EntryFifo)  {
 	clientid := msg.Key
 	data := msg.Values
+
+
 	var header *proc.CmdHeadInfo = *(**proc.CmdHeadInfo)(unsafe.Pointer(&data))
 	flag,status,bret := proc.IsNeedAck(header)
 	if bret == true {
@@ -324,7 +308,6 @@ func CmdUdpExec(msg *jsutils.EntryFifo)  {
 	case proc.ESCC_MSG_REG:
 		DealReg(clientid,header,msgdata)
 	case proc.ESCC_MSG_OPEN_ACK:
-		fmt.Println("switch retstr",retstr)
 		DealOpenAck(clientid,header,msgdata)
 	case proc.ESCC_MSG_CLOSE:
 		DealClose(clientid,header,msgdata)
@@ -338,10 +321,6 @@ func CmdUdpExec(msg *jsutils.EntryFifo)  {
 	default:
 
 	}
-
-
-	fmt.Println(clientid ,header)
-
 }
 
 func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
@@ -349,7 +328,6 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 	if ok != true{
 		return false
 	}
-
 
 	ssrc := header.Ssrc
 
@@ -364,17 +342,16 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 		if ok2 == true{
 			regack = regack[:regacklen]
 			gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,regack))
+		}else{
+			jsutils.Fatal("DealReg proc.EncodeRegAck error clientid=",clientid,"seq=",seq,"did",did)
 		}
 
 	}else {
+		jsutils.Fatal("DealReg FindCmdClientInfo error clientid=",clientid)
 		return false
 	}
 
 	clientinfo,_ = FindCmdClientInfo(clientid)
-
-
-
-	fmt.Println("DealReg1 cseq",clientinfo.Seq,"ttid",clientinfo.Tid)
 
 	for i:=0;i<len(simregstate);i++{
 
@@ -388,11 +365,14 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 			if simstate != inf.SIM_STATE_IDLE{
 				proc.SetState(inf.SIM_STATE_IDLE,slot,uint32(clientid))
 				gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_IDLE,int(simtype),clientinfo.ClientIp)
+				jsutils.Fatal("DealReg slot=",slot,"force SimState",inf.SIM_STATE_IDLE)
 			}
 		}else if simregstate[i] == 0x31 {
 			proc.SetCmdClient(uint32(clientid),slot,uint32(clientid))
 			if simstate == inf.SIM_STATE_IDLE || simstate == inf.SIM_STATE_DISABLE {
 				proc.SetState(inf.SIM_STATE_DISABLE,slot,uint32(clientid))
+				jsutils.Fatal("DealReg slot=",slot," SimState",inf.SIM_STATE_DISABLE)
+
 				proc.SetErroCount(0,slot,uint32(clientid))
 
 				jsutils.GetNext32(&clientinfo.Tid)
@@ -400,12 +380,16 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 				jsutils.GetNext16(&clientinfo.Seq)
 
 
-				fmt.Println("DealReg2 cseq",clientinfo.Seq,"ttid",clientinfo.Tid)
+
 				openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort, uint32(clientinfo.Seq),uint32(clientinfo.Tid),int(slot),username)
 				if ok3 {
 					openstr = openstr[:openlen]
 					gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
 					gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype),clientinfo.ClientIp)
+					jsutils.Fatal("DealReg cseq",clientinfo.Seq,"ttid",clientinfo.Tid,"slot=",slot,"proc.EncodeOpen ok")
+					jsutils.Fatal("DealReg cseq",clientinfo.Seq,"ttid",clientinfo.Tid,"slot=",slot,"SimState",inf.SIM_STATE_DISABLE)
+				}else{
+					jsutils.Fatal("DealReg cseq",clientinfo.Seq,"ttid",clientinfo.Tid,"slot=",slot,"proc.EncodeOpen error")
 				}
 			}
 		}
@@ -415,8 +399,10 @@ func DealReg(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 }
 
 func DealOpenAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
+	jsutils.Fatal("DealOpenAck clientid=",clientid,"json=",instr)
 	imsi,imei,iccid,from,to,code,slot,_,remoteip,remoteport,simtype := proc.DecodeOpenAck(instr)
 	if imsi != ""{
+		jsutils.Fatal("DealOpenAck DecodeOpenAck ok , clientid=",clientid,"imsi=",imsi,"imei=","imei=",imei,"from=",from,"to=",to,"code=",code,"slot=",slot,"simtype=",simtype)
 		if code == 200{
 			proc.SetState(inf.SIM_STATE_USABLE, uint32(slot), uint32(clientid))
 			proc.SetImsi(imsi,uint32(slot), uint32(clientid))
@@ -426,12 +412,14 @@ func DealOpenAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 			proc.SetTo(to,uint32(slot), uint32(clientid))
 			proc.SetSimType(uint32(simtype),uint32(slot), uint32(clientid))
 			proc.SetSUpdateTime(uint64(time.Now().Unix()),uint32(slot), uint32(clientid))
-
+			jsutils.Fatal("DealOpenAck DecodeOpenAck ok , clientid=",clientid,"imsi=",imsi,"imei=","imei=",imei,"from=",from,"to=",to,"code=",code,"slot=",slot,"simtype=",simtype)
 
 		}else{
+			jsutils.Fatal("DealOpenAck DecodeOpenAck error , clientid=",clientid,"imsi=",imsi,"imei=","imei=",imei,"from=",from,"to=",to,"code=",code,"slot=",slot,"simtype=",simtype)
 			return false
 		}
 	}else{
+		jsutils.Fatal("DealOpenAck DecodeOpenAck error , imsi is null, clientid=",clientid,"json=",instr)
 		return false
 	}
 	openackack,openackacklen,ok:= proc.EncodeOpenAckAck(header)
@@ -444,31 +432,60 @@ func DealOpenAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 
 	cmdClientInfo,ok := FindCmdClientInfo(int32(clientid))
 	if ok == false{
+		jsutils.Fatal("DealOpenAck slot",slot,"clientid=",clientid,"FindCmdClientInfo error","imsi=",imsi)
 		return false
 	}
 	gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_USABLE,int(simtype),cmdClientInfo.ClientIp)
-	fmt.Println("DealOpenAck cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
+	jsutils.Fatal("DealOpenAck slot",slot,"clientip=",cmdClientInfo.ClientIp,"SimState=",inf.SIM_STATE_USABLE,"imsi=",imsi)
 	jsutils.GetNext32(&cmdClientInfo.Tid)
 	jsutils.GetNext16(&cmdClientInfo.Seq)
-	fmt.Println("DealOpenAck EncodeInfoReset cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
+
 	retstr,_,ok3 :=proc.EncodeInfoReset(from,to, int32(cmdClientInfo.Seq),slot, int32(cmdClientInfo.Tid),cmdClientInfo.Src)
 	if ok3 == true{
+		jsutils.Fatal("DealOpenAck slot",slot,"clientip=",cmdClientInfo.ClientIp,"SimState=",inf.SIM_STATE_USABLE,"imsi=",imsi,"proc.EncodeInfoReset ok")
 		AddCmdFifo(int(clientid),retstr)
 		return true
+	}else{
+		jsutils.Fatal("DealOpenAck slot",slot,"clientip=",cmdClientInfo.ClientIp,"SimState=",inf.SIM_STATE_USABLE,"imsi=",imsi,"proc.EncodeInfoReset error")
 	}
 
 	return true
 }
 
 func DealClose(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
+
+	jsutils.Fatal("DealClose clientid=",clientid,"json=",instr)
 	from,to,cseq,slot := proc.DecodeClose(instr)
+	if slot == 0{
+		jsutils.Fatal("DealClose clientid=",clientid,"proc.DecodeClose error, json=",instr)
+		return false
+	}
+
 	closeack,closeacklen,ok:= proc.EncodeCloseAck(header,cseq,from,to)
 	if ok == true{
+		jsutils.Fatal("DealClose clientid=",clientid,"proc.EncodeCloseAck error, json=",instr)
 		closeack = closeack[:closeacklen]
 		gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,closeack))
 	}
 	lastState,_ := proc.GetState(uint32(slot), uint32(clientid))
 	proc.SetState(inf.SIM_STATE_DISABLE,uint32(slot), uint32(clientid))
+
+	simInfo := proc.GetSimInfo(uint32(slot), uint32(clientid))
+	if simInfo == nil {
+		jsutils.Fatal("DealClose slot",slot,"clientid=",clientid,"proc.GetSimInfo error")
+		return false
+	}
+
+	cmdClientInfo,ok := FindCmdClientInfo(int32(clientid))
+	if ok == false{
+		jsutils.Fatal("DealClose slot",slot,"clientid=",clientid,"FindCmdClientInfo error","imsi=",simInfo.Imsi)
+		return false
+	}
+
+	jsutils.Fatal("DealClose clientid=",clientid,"slot=",slot,"imsi=",simInfo.Imsi,"SetState=",inf.SIM_STATE_DISABLE)
+
+	gCmdSimCtrlInf.SimState(int(slot),simInfo.Imsi,inf.SIM_STATE_USABLE,int(simInfo.State),cmdClientInfo.ClientIp)
+
 	proc.SetErroCount(0,uint32(slot), uint32(clientid))
 	if lastState == inf.SIM_STATE_USABLE {
 		dataClientId, ok := proc.GetDataClient(uint32(slot), uint32(clientid))
@@ -481,6 +498,8 @@ func DealClose(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 
 
 func DealPublish(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
+
+	jsutils.Fatal("DealPublish clientid=",clientid,"json=",instr)
 	username,from,to,slot,cseq,simstate := proc.DecodePublish(instr)
 	publishack,publishacklen,ok:= proc.EncodePublishAck(header,cseq,from,to,username,simstate,slot)
 	if ok == true{
@@ -503,12 +522,17 @@ func DealPublish(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 		}
 		cmdClientIp := cmdClientInfo.ClientIp
 		proc.SetState(inf.SIM_STATE_IDLE,uint32(slot), uint32(clientid))
+
+		jsutils.Fatal("DealPublish clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientIp)
+
 		gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_IDLE,int(simtype),cmdClientIp)
 	}
 	return true
 }
 
 func DealCloseAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
+	jsutils.Fatal("DealCloseAck clientid=",clientid,"json=",instr)
+
 	from,to,_ := proc.DecodeCloseAck(instr)
 	slot,ok := proc.FindSimslotByFromTo(uint32(clientid),from,to)
 	if ok == true {
@@ -530,18 +554,20 @@ func DealCloseAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 		proc.SetState(inf.SIM_STATE_DISABLE,slot, uint32(clientid))
 
 		gCmdSimCtrlInf.SimState(int(slot),imsi,inf.SIM_STATE_DISABLE,int(simtype),cmdClientIp)
+		jsutils.Fatal("DealCloseAck clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientIp)
 
-		fmt.Println("DealCloseAck cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 
 		jsutils.GetNext32(&cmdClientInfo.Tid)
 		jsutils.GetNext16(&cmdClientInfo.Seq)
 
-		fmt.Println("DealCloseAck EncodeOpen cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 		//reopen
 		openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort, uint32(cmdClientInfo.Seq),uint32(cmdClientInfo.Tid),int(slot),cmdClientInfo.UserName)
 		if ok3 {
+			jsutils.Fatal("DealCloseAck clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientIp,"reOpen proc.EncodeOpen ok")
 			openstr = openstr[:openlen]
 			gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
+		}else{
+			jsutils.Fatal("DealCloseAck clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientIp,"reOpen proc.EncodeOpen error")
 		}
 
 	}
@@ -549,6 +575,7 @@ func DealCloseAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 }
 
 func DealUpdateAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
+	jsutils.Fatal("DealUpdateAck clientid=",clientid,"json=",instr)
 	from,to,code := proc.DecodeUpdateAck(instr)
 	if code == 200{
 		return true
@@ -575,11 +602,17 @@ func DealUpdateAck(clientid int32,header *proc.CmdHeadInfo,instr string) bool {
 				jsutils.GetNext32(&cmdClientInfo.Tid)
 				jsutils.GetNext16(&cmdClientInfo.Seq)
 
+				jsutils.Fatal("DealUpdateAck clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientInfo.ClientIp)
+
 				//reopen
 				openstr,openlen,ok3 :=proc.EncodeOpen(header,gDataUdpServerIp,gDataUdpServerPort, uint32(cmdClientInfo.Seq),uint32(cmdClientInfo.Tid),int(slot),cmdClientInfo.UserName)
 				if ok3 {
+					jsutils.Fatal("DealUpdateAck clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientInfo.ClientIp,"reOpen EncodeOpen OK")
+
 					openstr = openstr[:openlen]
 					gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(clientid,openstr))
+				}else{
+					jsutils.Fatal("DealUpdateAck clientid=",clientid,"slot=",slot,"imsi=",imsi,"simtype=",simtype,"SimState=",inf.SIM_STATE_IDLE,"cmdClientIp=",cmdClientInfo.ClientIp,"reOpen EncodeOpen error")
 				}
 			}
 

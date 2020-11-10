@@ -1,8 +1,8 @@
 package proc
 
 import (
-	"fmt"
 	"inf"
+	"jsutils"
 	"strconv"
 	"time"
 )
@@ -490,7 +490,7 @@ func SaveAuthResp(slot uint32,clientid uint32,sres string,ik string,ck string,re
 			GSimInfoList[clientid][slot].RandList[n].Ck = ck
 			GSimInfoList[clientid][slot].RandList[n].Result = uint32(result)
 			GSimInfoList[clientid][slot].RandList[n].EndTime = uint64(time.Now().Unix())
-			fmt.Println("SaveAuthResp",slot,clientid,sres,ik,ck,result)
+			jsutils.Fatal("SaveAuthResp",slot,clientid,sres,ik,ck,result,"OK")
 			return true
 		}
 	}

@@ -43,12 +43,14 @@ func main() {
 
 
 	for {
-		time.Sleep(20*time.Second)
+		time.Sleep(30*time.Second)
 
 		var randstr string = "b93011f0874d02e5a2a7703596631dcb"
 		//var imsi string = "460078571900404"
-		var imsi string = "460005562309046"
-		sim.Auth(7,imsi,randstr,"",g_cmdclientip)
+		//var imsi string = "460005562309046"
+		//sim.Auth(7,imsi,randstr,"",g_cmdclientip)
+		var imsi string = "460008832529783"
+		sim.Auth(10,imsi,randstr,"",g_cmdclientip)
 
 	}
 }

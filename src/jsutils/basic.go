@@ -267,10 +267,24 @@ func GetNext32(in *uint32) uint32 {
 }
 
 func MyZlibUnCompress(src []byte) []byte {
+	/*
 	b := bytes.NewReader(src)
 	var out bytes.Buffer
 	r, _ := zlib.NewReader(b)
 	io.Copy(&out, r)
+	return out.Bytes()
+	*/
+
+	var out bytes.Buffer
+	zlibReader, err := zlib.NewReader(bytes.NewBuffer(src))
+	if err != nil {
+		return nil
+	}
+	_, err = io.Copy(&out, zlibReader)
+	if err != nil {
+		return nil
+	}
+	zlibReader.Close()
 	return out.Bytes()
 	
 }

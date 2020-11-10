@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 	"inf"
+	"jsutils"
 	"proc"
 	"udpserver"
 )
@@ -19,8 +20,18 @@ import (
 	* 返 回 值：0--成功  !0--失败
 */
 func InitSimControl(ip string,cmdport int,dataport int,ctrol inf.SimCtroler)  int{
-	return udpserver.UdpServerInit(ip,cmdport,dataport,ctrol)
+	jsutils.InitLog("./log/simctrol","simctrol")
+	jsutils.SetLogLeavel(jsutils.WARN)
+	fmt.Sprintf("ff=%d")
+	jsutils.Fatal("InitSimControl ip=",ip,"cmdport=",cmdport,"dataport",dataport)
 
+	ret:= udpserver.UdpServerInit(ip,cmdport,dataport,ctrol)
+	if ret == 0 {
+		jsutils.Fatal("InitSimControl udpserver.UdpServerInit ok")
+	}else{
+		jsutils.Fatal("InitSimControl udpserver.UdpServerInit err, ret=",ret)
+	}
+	return ret
 }
 
 
@@ -30,8 +41,10 @@ func InitSimControl(ip string,cmdport int,dataport int,ctrol inf.SimCtroler)  in
 * 返 回 值：0--成功  !0--失败
 ******************************************************************/
 func ReleaseSimCtrol()  {
+	jsutils.Fatal("ReleaseSimCtrol start")
 	udpserver.UdpCmdServerRelease()
 	udpserver.UdpDataServerRelease()
+	jsutils.Fatal("ReleaseSimCtrol ok")
 }
 
 /******************************************************************
@@ -45,19 +58,20 @@ func ReleaseSimCtrol()  {
 ******************************************************************/
 func Auth(slot int,imsi string,randstr string,autn string,clientip string) int{
 
-	fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s\n",slot,imsi,randstr,autn,clientip)
+
+	jsutils.Fatal("slot=",slot,"imsi=",imsi,"randstr=",randstr ,"autn=",autn,"clientip=",clientip)
 
 	cmdClientId,_ := udpserver.GetCmdClientIdByClientIp(clientip)
 	if cmdClientId >0{
 		simType,ok := proc.GetSimType(uint32(slot), uint32(cmdClientId))
 		if ok == false {
-			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s proc.GetSimType error\n",slot,imsi,randstr,autn,clientip)
+			jsutils.Fatal("slot=",slot,"imsi=",imsi,"randstr=",randstr ,"autn=",autn,"clientip=",clientip,"proc.GetSimType error")
 			return -1
 		}
 
 		dataClientId,ok:= proc.GetDataClient(uint32(slot), uint32(cmdClientId))
 		if ok == false {
-			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s proc.GetDataClient error\n",slot,imsi,randstr,autn,clientip)
+			jsutils.Fatal("slot=",slot,"imsi=",imsi,"randstr=",randstr ,"autn=",autn,"clientip=",clientip,"proc.GetDataClient error")
 			return -2
 		}
 
@@ -65,7 +79,7 @@ func Auth(slot int,imsi string,randstr string,autn string,clientip string) int{
 		simInfo.AuthErrorCount++
 
 		if simInfo.AuthErrorCount >= proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT {
-			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s AuthErrorCount>=%d error\n",slot,imsi,randstr,autn,clientip,proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT)
+			jsutils.Fatal("slot=",slot,"imsi=",imsi,"randstr=",randstr ,"autn=",autn,"clientip=",clientip,"error AuthErrorCount>=",proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT)
 			return -3
 		}
 
@@ -74,24 +88,25 @@ func Auth(slot int,imsi string,randstr string,autn string,clientip string) int{
 		if ret <0 {	//失败
 			return -5
 		}else if ret ==1 {//重复鉴权,有结果
-			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s ok retturn result=%d sres=%s ck=%s ik=%s\n",slot,imsi,randstr,autn,clientip,int(result),sres,ck,ik)
+			jsutils.Fatal("repeat auth ,return resp ok  slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip," ok retturn result=",result,"sres=",sres,"ck=",ck,"ik=",ik)
 			udpserver.GSimCtrlInf.AuthResult(slot,imsi, int(result),sres,ck,ik, clientip)
 			simInfo.AuthErrorCount = 0
 			return 0
 
 		}else if ret == 2 {	//重复鉴权,无结果
-			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s error, repeat auth and no answer\n",slot,imsi,randstr,autn,clientip)
+			jsutils.Fatal("repeat auth... ,no resp , slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip,"error, repeat auth and no answer")
 			return 0
 		}
 		//新鉴权
 		dataClientInfo,ok := udpserver.FindDataClientInfo(int32(dataClientId))
 		if ok != true{
-			fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s dataClientId=%d FindDataClientInfo error\n",slot,imsi,randstr,autn,clientip,int32(dataClientId))
+			jsutils.Fatal("new auth ,slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip,"dataClientId=",dataClientId,"FindDataClientInfo error")
 			return -6
 		}
 
 
-AUTH2:	if simType == inf.SIM_TYPE_2G {
+		if simType == inf.SIM_TYPE_2G {
+
 			dataClientInfo.Seq++
 			if dataClientInfo.Seq == 0{
 				dataClientInfo.Seq = 1
@@ -100,7 +115,6 @@ AUTH2:	if simType == inf.SIM_TYPE_2G {
 			authdata,ok := proc.EncodeAuth2GStep1(randstr, uint16(dataClientInfo.Seq))
 			if ok == true{
 				udpserver.AddDataFifo(int(dataClientId),authdata)
-
 				proc.SetDataStepState(proc.CMD_STATE_AUTH_1, uint32(slot), uint32(cmdClientId))
 				proc.SetDataState(proc.DATA_STATE_WAITING, uint32(slot), uint32(cmdClientId))
 				return 0
@@ -108,8 +122,22 @@ AUTH2:	if simType == inf.SIM_TYPE_2G {
 
 		}else if simType == inf.SIM_TYPE_4G {
 			if len(autn) <=0{
-				goto AUTH2
-				return 0
+				jsutils.Fatal("slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip,"force 2G auth")
+				dataClientInfo.Seq++
+				if dataClientInfo.Seq == 0{
+					dataClientInfo.Seq = 1
+				}
+				udpserver.SetDataClientInfoSeq(int32(dataClientId), uint32(dataClientInfo.Seq))
+				authdata,ok := proc.EncodeAuth2GStep1(randstr, uint16(dataClientInfo.Seq))
+				if ok == true{
+					udpserver.AddDataFifo(int(dataClientId),authdata)
+					proc.SetDataStepState(proc.CMD_STATE_AUTH_1, uint32(slot), uint32(cmdClientId))
+					proc.SetDataState(proc.DATA_STATE_WAITING, uint32(slot), uint32(cmdClientId))
+					return 0
+				}else{
+					jsutils.Fatal("slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip,"proc.EncodeAuth2GStep1 error")
+					return -7
+				}
 			}
 
 			dataClientInfo.Seq++
@@ -125,10 +153,13 @@ AUTH2:	if simType == inf.SIM_TYPE_2G {
 				proc.SetDataStepState(proc.CMD_STATE_AUTH_1, uint32(slot), uint32(cmdClientId))
 				proc.SetDataState(proc.DATA_STATE_WAITING, uint32(slot), uint32(cmdClientId))
 				return 0
+			}else{
+				jsutils.Fatal("slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip,"proc.EncodeAuth4GStep1 error")
+				return -8
 			}
 		}
 	}else{
-		fmt.Printf("slot=%d imsi=%s randstr=%s autn=%s clientip=%s error, not found clientid by clientip\n",slot,imsi,randstr,autn,clientip)
+		jsutils.Fatal("slot=",slot," imsi=",imsi,"randstr=",randstr,"autn=",autn,"clientip=",clientip,"error, not found clientid by clientip")
 	}
 	return 0
 }
@@ -146,8 +177,14 @@ func ReadImsi(slot int,clientip string) (imsi string,simtype int) {
 	if ok == true {
 
 		simInfo := proc.GetSimInfo(uint32(slot), uint32(cmdClientId))
-
+		if simInfo == nil{
+			jsutils.Fatal("ReadImsi proc.GetSimInfo error, slot=",slot,"clientip=",clientip)
+			return "",0
+		}
+		jsutils.Fatal("ReadImsi slot=",slot,"clientip=",clientip,"imsi=",simInfo.Imsi,"simtype=",simInfo.SimType)
 		return simInfo.Imsi, int(simInfo.SimType)
+	}else{
+		jsutils.Fatal("ReadImsi udpserver.GetCmdClientIdByClientIp error, slot=",slot,"clientip=",clientip)
 	}
 
 	return "",0
@@ -165,10 +202,15 @@ func ReSet(slot int,clientip string)  int{
 	if ok == true {
 
 		simInfo := proc.GetSimInfo(uint32(slot), uint32(cmdClientId))
+		if simInfo == nil{
+			jsutils.Fatal("ReSet proc.GetSimInfo error, slot=",slot,"clientip=",clientip)
+			return -1
+		}
 
 		cmdClientInfo,ok1 := udpserver.FindCmdClientInfo(int32(cmdClientId))
 		if ok1 == false {
-			return -1
+			jsutils.Fatal("ReSet udpserver.FindCmdClientInfo error, slot=",slot,"clientip=",clientip,"cmdClientId=",cmdClientId)
+			return -2
 		}
 
 		cmdClientInfo.Tid++
@@ -183,8 +225,13 @@ func ReSet(slot int,clientip string)  int{
 		if ok3 == true{
 			udpserver.AddCmdFifo(cmdClientId,retstr)
 			return 0
+		}else{
+			jsutils.Fatal("ReSet proc.EncodeInfoReset error, slot=",slot,"clientip=",clientip,"cmdClientId=",cmdClientId,"from=",from,"to=",to,"seq=",cmdClientInfo.Seq,"tid=",cmdClientInfo.Tid,"src=",cmdClientInfo.Src)
+			return -3
 		}
+	}else{
+		jsutils.Fatal("ReSet udpserver.GetCmdClientIdByClientIp error, slot=",slot,"clientip=",clientip)
 	}
 
-	return 1
+	return -4
 }

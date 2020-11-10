@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+
 type UdpClientInfo struct {
 	Addrstr 		string
 	Conn			*net.UDPAddr
@@ -19,6 +20,8 @@ type UdpClientInfo struct {
 	Src				int32
 	Tid				uint32
 	UserName		string
+
+
 }
 
 var GSimCtrlInf inf.SimCtroler

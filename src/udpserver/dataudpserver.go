@@ -10,7 +10,6 @@ import (
 	"proc"
 	"sync"
 	"time"
-	"unsafe"
 )
 
 //var gDataUdpAddrMap sync.Map
@@ -115,7 +114,6 @@ func DataUdpExecProcess()  {
 		msg,ok := gDataUdpRecvFifo.GetEntryFifo()
 
 		if ok == true{
-			fmt.Printf("DataUdpExecProcess fifo msg.key=%d msg.valuses.len=%d\n",msg.Key, len(msg.Values))
 			DataUdpExec(&msg)
 		}else{
 			time.Sleep(100*time.Millisecond)
@@ -130,7 +128,7 @@ func DataTimeOut(){
 			gDataClientIdArr[key] = 0
 			delete(gDataUdpAddrMap.mp, v.Addrstr)
 			delete(gDataUdpClientMap.mp,key )
-			fmt.Printf("DataTimeOut delete key=%v value=%v\n",key,v)
+			jsutils.Fatal("---DataTimeOut delete key=",key,"value=",v)
 		}
 	}
 }
@@ -140,7 +138,6 @@ func DataTimeOut(){
 func DataUdpExec(msg *jsutils.EntryFifo)  {
 	dataClientId := msg.Key
 	data := msg.Values
-	var header *proc.DataRespHead = *(**proc.DataRespHead)(unsafe.Pointer(&data))
 
 	datalen := len(data)
 	if datalen<=12 {
@@ -150,60 +147,50 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 	var rspindex uint16
 	rspindex = uint16(data[0]) * 256 + uint16(data[1])
 
-	ss := jsutils.DisplayHexString(data,3)
-	fmt.Println("DataUdpExec ss",ss)
-	fmt.Println("DataUdpExec index",header.Index)
-	fmt.Println("DataUdpExec rspindex",rspindex)
+
 	dataClientInfo,ok:= FindDataClientInfo(int32(dataClientId))
 	if ok == false{
-		fmt.Println("DataUdpExec FindDataClientInfo error ",dataClientId)
+		jsutils.Fatal("DataUdpExec FindDataClientInfo error ",dataClientId)
 		return
 	}
 
-	fmt.Println("DataUdpExec dataClientInfo ",dataClientInfo)
 
 	cmdClientId,ok := proc.GetCmdClientByDataclient(uint32(dataClientId))
 	if ok == false{
-		fmt.Println("DataUdpExec GetCmdClientByDataclient error ",dataClientId)
+		jsutils.Fatal("DataUdpExec GetCmdClientByDataclient error ",dataClientId)
 		return
 	}
 
 	cmdClientInfo,ok:= FindCmdClientInfo(int32(cmdClientId))
 	if ok == false{
-		fmt.Println("DataUdpExec FindCmdClientInfo error ",dataClientId)
+		jsutils.Fatal("DataUdpExec FindCmdClientInfo error ",dataClientId)
 		return
 	}
-	fmt.Println("DataUdpExec cmdClientInfo ",cmdClientInfo)
 
 	cmdClientip := cmdClientInfo.ClientIp
-	fmt.Println("DataUdpExec cmdClientInfo.ClientIp ",cmdClientInfo.ClientIp)
 
 	slot,ok := proc.GetSlotByCmdClientDataclient(cmdClientId, uint32(dataClientId))
 	if ok == false{
-		fmt.Println("DataUdpExec GetSlotByCmdClientDataclient error ",cmdClientId)
+		jsutils.Fatal("DataUdpExec GetSlotByCmdClientDataclient error ",cmdClientId)
 		return
 	}
 
 	dataStepState,ok:= proc.GetDataStepState(slot,cmdClientId)
 	if ok == false{
-		fmt.Println("DataUdpExec GetDataStepState error ",cmdClientId)
+		jsutils.Fatal("DataUdpExec GetDataStepState error ",cmdClientId)
 		return
 	}
 
 
-
-	fmt.Println("DataUdpExec seq",dataClientInfo.Seq)
-
-
 	simType,ok:= proc.GetSimType(slot,cmdClientId)
 	if ok == false{
-		fmt.Println("DataUdpExec GetSimType error ",cmdClientId)
+		jsutils.Fatal("DataUdpExec GetSimType error ",cmdClientId)
 		return
 	}
 
 	imsi,ok:= proc.GetImsi(slot,cmdClientId)
 	if ok == false{
-		fmt.Println("DataUdpExec GetImsi error ",cmdClientId)
+		jsutils.Fatal("DataUdpExec GetImsi error ",cmdClientId)
 		return
 	}
 
@@ -235,16 +222,14 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 		if simType == inf.SIM_TYPE_2G {
 			if dataClientInfo.Seq == rspindex {
 				result, sres, kc, ret := proc.DecodeAuth2GStep1(data)
-
-				fmt.Println("DataUdpExec CMD_STATE_AUTH_1 DecodeAuth2GStep1 ret ",ret)
-
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
+						jsutils.Fatal("2G slot=",slot,"imsi=",imsi,"result=",result,"sres=",sres,"kc=",kc,"ik= ","cmdClientip=",cmdClientip)
 						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, "", cmdClientip)
 						ok = proc.SaveAuthResp(slot,cmdClientId,sres,"",kc,result)
 						if ok == false{
-							fmt.Println("DataUdpExec CMD_STATE_AUTH_1 SaveAuthResp error ",slot,cmdClientId,sres,kc,result)
+							jsutils.Fatal("DataUdpExec CMD_STATE_AUTH_1 SaveAuthResp error ",slot,cmdClientId,sres,kc,result)
 						}
 						proc.SetErroCount(0, slot, cmdClientId)
 					}else{
@@ -265,7 +250,6 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 					proc.SetErroCount(proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT, slot, cmdClientId)
 				}
 			}else {
-				fmt.Println("DataUdpExec CMD_STATE_AUTH_1 seq =",dataClientInfo.Seq,"rspindex =",rspindex)
 			}
 		} else if simType == inf.SIM_TYPE_4G {
 			if dataClientInfo.Seq == rspindex {
@@ -275,6 +259,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 					if result == 0 {
 						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, ik, cmdClientip)
 						proc.SaveAuthResp(slot,cmdClientId,sres,ik,kc,result)
+						jsutils.Fatal("4G slot=",slot,"imsi=",imsi,"result=",result,"sres=",sres,"kc=",kc,"ik=",ik,"cmdClientip=",cmdClientip)
 						proc.SetErroCount(0, slot, cmdClientId)
 					}else{
 						proc.SetErroCount(proc.MAX_AUTH_ERROR_FOR_CLOSE_COUNT, slot, cmdClientId)
@@ -303,6 +288,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
+						jsutils.Fatal("2G slot=",slot,"imsi=",imsi,"result=",result,"sres=",sres,"kc=",kc,"ik=","","cmdClientip=",cmdClientip)
 						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, "", cmdClientip)
 						proc.SaveAuthResp(slot,cmdClientId,sres,"",kc,result)
 						proc.SetErroCount(0, slot, cmdClientId)
@@ -320,6 +306,7 @@ func DataUdpExec(msg *jsutils.EntryFifo)  {
 				if ret == 0 {
 					proc.SetDataStepState(proc.CMD_STATE_NULL, slot, cmdClientId)
 					if result == 0 {
+						jsutils.Fatal("4G slot=",slot,"imsi=",imsi,"result=",result,"sres=",sres,"kc=",kc,"ik=",ik,"cmdClientip=",cmdClientip)
 						gDataSimCtrlInf.AuthResult(int(slot), imsi, result, sres, kc, ik, cmdClientip)
 						proc.SaveAuthResp(slot,cmdClientId,sres,ik,kc,result)
 						proc.SetErroCount(0, slot, cmdClientId)
@@ -365,7 +352,7 @@ func DataUdpServerRecv(conn *net.UDPConn)  {
 			continue
 		}
 		buf := [] byte(data[:len])
-		fmt.Printf("DataUdpServerRecv conn.ReadFromUDP len=%d addr=%v\n",len,clientAddr)
+		//fmt.Printf("DataUdpServerRecv conn.ReadFromUDP len=%d addr=%v\n",len,clientAddr)
 		//ss := jsutils.DisplayHexString(buf,3)
 		//fmt.Println(ss)
 
@@ -379,14 +366,14 @@ func DataUdpServerRecv(conn *net.UDPConn)  {
 			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:int32(clientid),LastTime:time.Now().Unix(),ClientIp: ip,ClientPort: int16(port),Seq: 1,Tid: 1}
 			gDataUdpClientMap.MapClientInfoSet(clientid,&clientinfo)
 
-			//fmt.Printf("!!! DataUdpServerRecv new client_id = %v  addr=%s\n",clientid,clientAddr.String())
+			jsutils.Fatal("!!! DataUdpServerRecv new client_id = %v  addr=%s\n",clientid,clientAddr.String())
 			gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
 		}else {
 
 			clientinfo,ok1 := FindDataClientInfo(int32(clientid))
 			if ok1 == true{
 				clientinfo.LastTime = time.Now().Unix();
-				fmt.Printf("DataUdpServerRecv mutil client_id = %v  addr=%s\n",clientid,clientAddr.String())
+				//fmt.Printf("DataUdpServerRecv mutil client_id = %v  addr=%s\n",clientid,clientAddr.String())
 				gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
 			}
 		}
@@ -405,7 +392,7 @@ func DataUdpServerSend(conn *net.UDPConn)  {
 
 		msg,ok := gDataUdpSendFifo.GetEntryFifo()
 		if ok == true{
-			fmt.Printf("DataUdpServerSend fifo msg.key=%d msg.valuses.len=%d\n",msg.Key, len(msg.Values))
+			//fmt.Printf("DataUdpServerSend fifo msg.key=%d msg.valuses.len=%d\n",msg.Key, len(msg.Values))
 			clientinfo,ok := FindDataClientInfo(msg.Key)
 			if ok  == true {
 				_,err := conn.WriteToUDP([]byte(msg.Values),clientinfo.Conn)
@@ -426,17 +413,17 @@ func UdpDataServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
 	addrStr = fmt.Sprintf("%s:%d",ip,cmdport)
 	gDataUdpServerIp = ip
 	gDataUdpServerPort = uint16(cmdport)
-	fmt.Println("UdpDataServerInit addrInfo = "+addrStr)
+	jsutils.Fatal("UdpDataServerInit addrInfo = "+addrStr)
 	gDataSimCtrlInf = ctrol
 	udpAddr,err := net.ResolveUDPAddr("udp",addrStr)
 	if err != nil{
-		fmt.Println("UdpDataServerInit ResolveUDPAddr err="+err.Error())
+		jsutils.Fatal("UdpDataServerInit ResolveUDPAddr err="+err.Error())
 		os.Exit(1)
 	}
 
 	conn,err:=net.ListenUDP("udp",udpAddr)
 	if err != nil{
-		fmt.Println("UdpDataServerInit ListenUDP err="+err.Error())
+		jsutils.Fatal("UdpDataServerInit ListenUDP err="+err.Error())
 		os.Exit(2)
 	}
 
@@ -448,7 +435,7 @@ func UdpDataServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
 	go DataUdpServerRecv(conn)
 	go DataUdpServerSend(conn)
 	go DataUdpExecProcess()
-
+	jsutils.Fatal("UdpDataServerInit OK")
 	return 0
 }
 

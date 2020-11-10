@@ -232,16 +232,16 @@ func DecodeOpenAck(instr string) (string,string,string,string,string,int,int,int
 
 	contentlength,ok = jsutils.GetJsonStr(instr,ESCC_MSG_PAR_CTT_LEN)
 	if ok == true{
-		fmt.Println("----------->contentlength",contentlength,"<----------------")
+		jsutils.Fatal("----------->contentlength",contentlength,"<----------------")
 		temp = jsutils.GetStrSlit(contentlength,"/",1)
 		clen,_ = strconv.Atoi(temp)
 
 		temp = jsutils.GetStrSlit(contentlength,"/",2)
 		unclen,_ = strconv.Atoi(temp)
 
-		fmt.Println("clen",clen,"unclen",unclen)
+		jsutils.Fatal("clen",clen,"unclen",unclen)
 	}else{
-		fmt.Println("----------->get contentlength  error<----------------")
+		jsutils.Fatal("----------->get contentlength  error<----------------")
 	}
 
 	temp,ok = jsutils.GetJsonStr(instr,ESCC_MSG_PAR_CODE)
