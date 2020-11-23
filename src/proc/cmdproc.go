@@ -521,20 +521,19 @@ func EncodeUpdate(cSeq int,from string,to string,slot int,ttid int32,ssrc int32)
 }
 
 
-func EncodeClose(cSeq int,from string,to string,slot int,ttid int32,ssrc int32) ([]byte,int,bool) {
+func EncodeClose(cSeq int,from string,to string,username string,slot int,ttid int32,ssrc int32) ([]byte,int,bool) {
 	var bret bool = false
 
 	var status uint16= 0
 	status = binary.BigEndian.Uint16(jsutils.Uint16ToBytes(uint16(status)))
-
+	simslot := fmt.Sprintf("%s.%03d",username,slot)
 	ack := map[string] interface{}{
 		ESCC_MSG_PAR_PROTO 	: SIM_PROTO,
 		ESCC_MSG_PAR_MSG	:ESCC_MSG_CLOSE,
 		ESCC_MSG_PAR_CSEQ	:cSeq,
 		ESCC_MSG_PAR_FROM	:from,
 		ESCC_MSG_PAR_TO	: to,
-		ESCC_MSG_PAR_CODE 	: ESCC_MSG_CODE_OK,
-		ESCC_MSG_PAR_REASON	:"OK",
+		ESCC_MSG_PAR_SIM_SLOT: simslot,
 	}
 
 	data, err := json.Marshal(ack)

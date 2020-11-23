@@ -365,8 +365,7 @@ func DataUdpServerRecv(conn *net.UDPConn)  {
 
 			clientinfo :=UdpClientInfo{Addrstr:clientAddr.String(),Conn:clientAddr,Clientid:int32(clientid),LastTime:time.Now().Unix(),ClientIp: ip,ClientPort: int16(port),Seq: 1,Tid: 1}
 			gDataUdpClientMap.MapClientInfoSet(clientid,&clientinfo)
-
-			jsutils.Fatal("!!! DataUdpServerRecv new client_id = %v  addr=%s\n",clientid,clientAddr.String())
+			jsutils.Fatal("!!! DataUdpServerRecv add ",clientinfo)
 			gDataUdpRecvFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(clientid),buf))
 		}else {
 
@@ -407,12 +406,12 @@ func DataUdpServerSend(conn *net.UDPConn)  {
 	}
 }
 
-func UdpDataServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
+func UdpDataServerInit(ip string,dataport int,ctrol inf.SimCtroler) int {
 
 	var addrStr string
-	addrStr = fmt.Sprintf("%s:%d",ip,cmdport)
+	addrStr = fmt.Sprintf("%s:%d",ip,dataport)
 	gDataUdpServerIp = ip
-	gDataUdpServerPort = uint16(cmdport)
+	gDataUdpServerPort = uint16(dataport)
 	jsutils.Fatal("UdpDataServerInit addrInfo = "+addrStr)
 	gDataSimCtrlInf = ctrol
 	udpAddr,err := net.ResolveUDPAddr("udp",addrStr)

@@ -1,7 +1,6 @@
 package sim
 
 import (
-	"fmt"
 	"inf"
 	"jsutils"
 	"proc"
@@ -22,7 +21,7 @@ import (
 func InitSimControl(ip string,cmdport int,dataport int,ctrol inf.SimCtroler)  int{
 	jsutils.InitLog("./log/simctrol","simctrol")
 	jsutils.SetLogLeavel(jsutils.WARN)
-	fmt.Sprintf("ff=%d")
+
 	jsutils.Fatal("InitSimControl ip=",ip,"cmdport=",cmdport,"dataport",dataport)
 
 	ret:= udpserver.UdpServerInit(ip,cmdport,dataport,ctrol)

@@ -289,3 +289,11 @@ func MyZlibUnCompress(src []byte) []byte {
 	
 }
 
+func MyZlibCompress(src []byte) []byte {
+	var in bytes.Buffer
+	w := zlib.NewWriter(&in)
+	w.Write(src)
+	w.Close()
+	return in.Bytes()
+}
+

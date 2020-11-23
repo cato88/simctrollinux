@@ -61,7 +61,10 @@ func EncodeAuth4GStep1(random string,autn string,seq uint16) ([]byte,bool) {
 
 	ret := temp[:22]
 
+
+
 	ret = append(ret,ran...)
+	ret = append(ret,[]byte{0x10}...)
 	ret = append(ret,aut...)
 	return ret,true
 

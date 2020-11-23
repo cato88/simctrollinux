@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"sim"
 	"time"
 )
@@ -39,7 +40,11 @@ func main() {
 
 	simctl := SimInterfaceStruct{}
 
-	sim.InitSimControl("210.32.1.229", 8888, 8889,&simctl)
+	ret :=sim.InitSimControl("210.32.1.229", 8888, 8889,&simctl)
+	if ret !=0 {
+		fmt.Println("sim.InitSimControl error ret=",ret);
+		os.Exit(1)
+	}
 
 
 	for {

@@ -5,7 +5,6 @@ import (
 	"inf"
 	"jsutils"
 	"net"
-	"os"
 	"proc"
 	"sync"
 	"time"
@@ -235,14 +234,14 @@ func UdpCmdServerInit(ip string,cmdport int,ctrol inf.SimCtroler) int {
 
 	udpAddr,err := net.ResolveUDPAddr("udp",addrStr)
 	if err != nil{
-		jsutils.Fatal("UdpServerInit ResolveUDPAddr err="+err.Error())
-		os.Exit(1)
+		jsutils.Fatal("UdpServerInit ResolveUDPAddr error="+err.Error())
+		return -1
 	}
 
 	conn,err:=net.ListenUDP("udp",udpAddr)
 	if err != nil{
-		jsutils.Fatal("UdpServerInit ListenUDP err="+err.Error())
-		os.Exit(2)
+		jsutils.Fatal("UdpServerInit ListenUDP error="+err.Error())
+		return -2
 	}
 
 
@@ -642,8 +641,6 @@ func CheckUpdate()  {
 			}
 
 
-
-
 			if proc.GSimInfoList[m][n].UpdateTime >0 && proc.GSimInfoList[m][n].UpdateTime+proc.DEFAULT_UPDATE_TIME_INTERVAL<=curTime {
 				proc.GSimInfoList[m][n].UpdateTime = curTime
 				fmt.Println("CheckUpdate cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
@@ -660,8 +657,9 @@ func CheckUpdate()  {
 				fmt.Println("CheckUpdate 3 cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
 				jsutils.GetNext32(&cmdClientInfo.Tid)
 				jsutils.GetNext16(&cmdClientInfo.Seq)
+
 				fmt.Println("CheckUpdate 4 cseq",cmdClientInfo.Seq,"ttid",cmdClientInfo.Tid)
-				clsoestr,_,_:= proc.EncodeClose(int(cmdClientInfo.Seq),proc.GSimInfoList[m][n].From,proc.GSimInfoList[m][n].To,n, int32(cmdClientInfo.Tid),cmdClientInfo.Src)
+				clsoestr,_,_:= proc.EncodeClose(int(cmdClientInfo.Seq),proc.GSimInfoList[m][n].From,proc.GSimInfoList[m][n].To,cmdClientInfo.UserName,n, int32(cmdClientInfo.Tid),cmdClientInfo.Src)
 				gCmdUdpSendFifo.PutEntryFifo(jsutils.NewEntryFifo(int32(cmdClientId),clsoestr))
 			}
 		}
