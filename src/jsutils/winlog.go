@@ -1,421 +1,287 @@
 package jsutils
 
 import (
-	"compress/gzip"
-	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
 	"os"
-	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
+	"reflect"
 	"time"
 )
 
-// io.WriteCloser
-var _ io.WriteCloser = (*TimeWriter)(nil)
+func GetCurDayInt() int {
 
-const (
-	compressSuffix = ".gz"
-	timeFormat     = "2006-01-02 15:04:05"
-)
-
-type TimeWriter struct {
-	Dir        string
-	Compress   bool
-	ReserveDay int
-
-	curFilename string
-	file        *os.File
-	mu          sync.Mutex
-	startMill   sync.Once
-	millCh      chan bool
+	return time.Now().Day()
 }
 
-func (l *TimeWriter) Write(p []byte) (n int, err error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+func GetCurDayString() string {
 
-	if l.file == nil {
-		if err = l.openExistingOrNew(len(p)); err != nil {
-			fmt.Printf("write fail, msg(%s)\n", err)
-			return 0, err
-		}
-	}
-
-	if l.curFilename != l.filename() {
-		l.rotate()
-	}
-
-	n, err = l.file.Write(p)
-
-	return n, err
+	return time.Now().Format("2006-01-02")
 }
 
-func (l *TimeWriter) Close() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.close()
+func GetCurTimeString() string {
+
+	return time.Now().Format("2006-01-02 15:04:05.000")
 }
 
-func (l *TimeWriter) Rotate() error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.rotate()
-}
+//调用os.MkdirAll递归创建文件夹
+func CreateMutiDir(filePath string) error {
 
-func (l *TimeWriter) close() error {
-	if l.file == nil {
-		return nil
-	}
-	err := l.file.Close()
-	l.file = nil
-	return err
-}
-
-func (l *TimeWriter) rotate() error {
-	if err := l.close(); err != nil {
-		return err
-	}
-	if err := l.openNew(); err != nil {
-		return err
-	}
-
-	l.mill()
-	return nil
-}
-
-func (l *TimeWriter) oldLogFiles() ([]logInfo, error) {
-	files, err := ioutil.ReadDir(l.Dir)
-	if err != nil {
-		return nil, fmt.Errorf("can't read log file directory: %s", err)
-	}
-	logFiles := []logInfo{}
-
-	prefix, ext := l.prefixAndExt()
-
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-		if f.Name() == filepath.Base(l.curFilename) {
-			continue
-		}
-		if t, err := l.timeFromName(f.Name(), prefix, ext); err == nil {
-			logFiles = append(logFiles, logInfo{t, f})
-			continue
-		} else {
-			fmt.Printf("err1(%s)\n", err)
-		}
-		if t, err := l.timeFromName(f.Name(), prefix, ext+compressSuffix); err == nil {
-			logFiles = append(logFiles, logInfo{t, f})
-			continue
-		} else {
-			fmt.Printf("err2(%s)\n", err)
-		}
-	}
-
-	sort.Sort(byFormatTime(logFiles))
-
-	return logFiles, nil
-}
-
-func (l *TimeWriter) timeFromName(filename, prefix, ext string) (time.Time, error) {
-	if !strings.HasPrefix(filename, prefix) {
-		return time.Time{}, errors.New("mismatched prefix")
-	}
-	if !strings.HasSuffix(filename, ext) {
-		return time.Time{}, errors.New("mismatched extension")
-	}
-	ts := filename[len(prefix) : len(filename)-len(ext)]
-	if len(ts) != 8 {
-		return time.Time{}, errors.New("mismatched date")
-	}
-	if year, err := strconv.ParseInt(ts[0:4], 10, 64); err != nil {
-		return time.Time{}, err
-	} else if month, _ := strconv.ParseInt(ts[4:6], 10, 64); err != nil {
-		return time.Time{}, err
-	} else if day, _ := strconv.ParseInt(ts[6:8], 10, 64); err != nil {
-		return time.Time{}, err
-	} else {
-		timeStr := fmt.Sprintf("%04d-%02d-%02d 00:00:00", year, month, day)
-		if location, err := time.LoadLocation("Local"); err != nil {
-			return time.Time{}, err
-		} else if t, err := time.ParseInLocation(timeFormat, timeStr, location); err != nil {
-			return time.Time{}, err
-		} else {
-			return t, nil
-		}
-	}
-
-}
-
-func (l *TimeWriter) prefixAndExt() (prefix, ext string) {
-	filename := filepath.Base(l.filename())
-	ext = filepath.Ext(filename)
-	prefix = filename[:len(filename)-len(ext)-8]
-	return prefix, ext
-}
-
-func (l *TimeWriter) millRunOnce() error {
-	if l.ReserveDay == 0 && !l.Compress {
-		return nil
-	}
-
-	files, err := l.oldLogFiles()
-	if err != nil {
-		return err
-	}
-
-	var compress, remove []logInfo
-
-	if l.ReserveDay > 0 {
-		diff := time.Duration(int64(24*time.Hour) * int64(l.ReserveDay))
-		cutoff := time.Now().Add(-1 * diff)
-
-		var remaining []logInfo
-		for _, f := range files {
-			if f.timestamp.Before(cutoff) {
-				remove = append(remove, f)
-			} else {
-				remaining = append(remaining, f)
-			}
-		}
-
-		files = remaining
-	}
-
-	if l.Compress {
-		for _, f := range files {
-			if !strings.HasSuffix(f.Name(), compressSuffix) {
-				compress = append(compress, f)
-			}
-		}
-	}
-
-	for _, f := range remove {
-		errRemove := os.Remove(filepath.Join(l.Dir, f.Name()))
-		if err == nil && errRemove != nil {
-			err = errRemove
-		}
-	}
-	for _, f := range compress {
-		fn := filepath.Join(l.Dir, f.Name())
-		errCompress := compressLogFile(fn, fn+compressSuffix)
-		if err == nil && errCompress != nil {
-			err = errCompress
-		}
-	}
-
-	return err
-}
-
-func (l *TimeWriter) millRun() {
-	for _ = range l.millCh {
-		_ = l.millRunOnce()
-	}
-}
-
-func (l *TimeWriter) mill() {
-	l.startMill.Do(func() {
-		l.millCh = make(chan bool, 1)
-		go l.millRun()
-	})
-	select {
-	case l.millCh <- true:
-	default:
-	}
-}
-
-func (l *TimeWriter) openNew() error {
-	name := l.filename()
-	err := os.MkdirAll(l.Dir, 0744)
-	if err != nil {
-		return fmt.Errorf("can't make directories for new logfile: %s", err)
-	}
-
-	mode := os.FileMode(0644)
-
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return fmt.Errorf("can't open new logfile: %s", err)
-	}
-	l.curFilename = name
-	l.file = f
-	return nil
-}
-
-func (l *TimeWriter) openExistingOrNew(writeLen int) error {
-
-	filename := l.filename()
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		return l.openNew()
-	} else if err != nil {
-		return fmt.Errorf("error getting log file info: %s", err)
-	}
-
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return l.openNew()
-	}
-	l.curFilename = filename
-	l.file = file
-	return nil
-}
-
-func (l *TimeWriter) filename() string {
-	year, month, day := time.Now().Date()
-	date := fmt.Sprintf("%04d%02d%02d", year, month, day)
-	//name := fmt.Sprintf("%s.%s.log", filepath.Base(os.Args[0]), date)
-	name := fmt.Sprintf("%s.%s.log", filepath.Base("simctrol"), date)
-	if l.Dir != "" {
-		return filepath.Join(l.Dir, name)
-	}
-	return filepath.Join(os.TempDir(), name)
-}
-
-func compressLogFile(src, dst string) (err error) {
-	f, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("failed to open log file: %v", err)
-	}
-	defer f.Close()
-
-	fi, err := os.Stat(src)
-	if err != nil {
-		return fmt.Errorf("failed to stat log file: %v", err)
-	}
-
-	gzf, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, fi.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to open compressed log file: %v", err)
-	}
-	defer gzf.Close()
-
-	gz := gzip.NewWriter(gzf)
-
-	defer func() {
+	if !isExist(filePath) {
+		err := os.MkdirAll(filePath, os.ModePerm)
 		if err != nil {
-			os.Remove(dst)
-			err = fmt.Errorf("failed to compress log file: %v", err)
+			fmt.Println("创建文件夹失败,error info:", err)
+			return err
 		}
-	}()
-
-	if _, err := io.Copy(gz, f); err != nil {
 		return err
 	}
-	if err := gz.Close(); err != nil {
-		return err
-	}
-	if err := gzf.Close(); err != nil {
-		return err
-	}
-
-	if err := f.Close(); err != nil {
-		return err
-	}
-	if err := os.Remove(src); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-type logInfo struct {
-	timestamp time.Time
-	os.FileInfo
+// 判断所给路径文件/文件夹是否存在(返回true是存在)
+func isExist(path string) bool {
+
+	_, err := os.Stat(path) //os.Stat获取文件信息
+	if err != nil {
+		if os.IsExist(err) {
+			return true
+		}
+		return false
+	}
+	return true
 }
 
-// byFormatTime sorts by newest time formatted in the name.
-type byFormatTime []logInfo
-
-func (b byFormatTime) Less(i, j int) bool {
-	return b[i].timestamp.After(b[j].timestamp)
+type LogInfo struct {
+	gFilePath    string
+	gPrefix      string
+	gFileMaxSize uint32
+	gCurday      uint32
+	gFile        *os.File
+	gLogLeavel   int //日志等级
+	gLogFifo     *LimitedEntryFifo
+	gIndex       int
 }
 
-func (b byFormatTime) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
+const DEFAULT_FILE_MAX_SIZE = 50 << 20
+const WRITE_CONTINUE__COUNT = 100
+
+var gLogInfo = &LogInfo{}
+
+func CreateLogFile(filename string) (*os.File, bool) {
+
+	ret, error := os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0777)
+	if error != nil {
+		fmt.Println("CreateLogFile error", error)
+		return nil, false
+	}
+	return ret, true
 }
 
-func (b byFormatTime) Len() int {
-	return len(b)
+func WriteLog(logfile *os.File, str []byte) bool {
+	if logfile != nil {
+		logfile.Write(str)
+		return true
+	}
+	return false
 }
 
-var (
-	SimLog   *log.Logger // 记录所有日志
-	logleavel  int  //日志等级
-)
+func CloseLogFile(logfile *os.File) bool {
+	if logfile != nil {
+		logfile.Close()
+	}
+	return true
+}
+
+func GetNewFileIndex(filepath string, prefix string) (index int, bret bool) {
+	for n := 1; n < 10000; n++ {
+		ttt := fmt.Sprintf("_%04d", n)
+		retfile := filepath + "/" + prefix + GetCurDayString() + ttt + ".log"
+		_, err := os.Stat(retfile)
+		if os.IsNotExist(err) {
+			index = n
+			bret = true
+			return
+		}
+	}
+	return
+}
+
+func GetCurFileSize(filename string) (size int64, bret bool) {
+
+	fi, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		size = fi.Size()
+		bret = true
+	}
+
+	return
+}
+
+func GetCurLogFileName(filepath string, prefix string, index int) string {
+	var ss string
+	ss = fmt.Sprintf("_%04d", index)
+	return filepath + "/" + prefix + GetCurDayString() + ss + ".log"
+}
+
+func GetParamString(v ...interface{}) string {
+
+	var ret string
+	for _, param := range v {
+		switch reflect.TypeOf(param).Kind().String() {
+		case "string":
+			ret = ret + fmt.Sprintf(" %s", param)
+		default:
+			ret = ret + fmt.Sprintf(" %v", param)
+		}
+	}
+	ret += "\n"
+	return ret
+}
+
+func InitLog(filepath string, prefix string, filesize int) bool {
+
+	gLogInfo.gFilePath = filepath
+	ret := CreateMutiDir(filepath)
+	if ret != nil {
+		fmt.Println("InitLog CreateMutiDir error,", ret)
+		return false
+	}
+
+	gLogInfo.gIndex, _ = GetNewFileIndex(filepath, prefix)
+
+	tempsize := filesize
+	if tempsize > 100 {
+		tempsize = 100
+	} else if tempsize < 10 {
+		tempsize = 10
+	}
+
+	gLogInfo.gFileMaxSize = uint32(tempsize) * 1024 * 1024
+	gLogInfo.gPrefix = prefix
+	gLogInfo.gCurday = uint32(GetCurDayInt())
+	if filesize == 0 {
+		gLogInfo.gFileMaxSize = DEFAULT_FILE_MAX_SIZE
+	}
+	gLogInfo.gLogFifo = NewLimitedEntryFifo(10000)
+	go LogProcess()
+	return true
+}
+
+func LogProcess() {
+
+	var ok bool
+	defer CloseLogFile(gLogInfo.gFile)
+
+	fmt.Println("LogProcess ...")
+	curDay := uint32(GetCurDayInt())
+	for {
+		if gLogInfo.gLogFifo.EntryFifoLen() <= 0 {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		if curDay != gLogInfo.gCurday {
+			gLogInfo.gCurday = curDay
+			gLogInfo.gIndex = 1
+		}
+		//fmt.Println("have log")
+
+		filename := GetCurLogFileName(gLogInfo.gFilePath, gLogInfo.gPrefix, gLogInfo.gIndex)
+		gLogInfo.gFile, ok = CreateLogFile(filename)
+		if ok == false {
+			fmt.Println("!!!LogProcess CreateLogFile error ", filename)
+
+			for n := 0; n < WRITE_CONTINUE__COUNT; n++ {
+				_, ok := gLogInfo.gLogFifo.GetEntryFifo()
+				if ok == true {
+				} else {
+					time.Sleep(10 * time.Millisecond)
+					break
+				}
+			}
+			continue
+		}
+
+		for n := 0; n < WRITE_CONTINUE__COUNT; n++ {
+			msg, ok := gLogInfo.gLogFifo.GetEntryFifo()
+			if ok == true {
+				WriteLog(gLogInfo.gFile, msg.Values)
+			} else {
+				time.Sleep(10 * time.Millisecond)
+				break
+			}
+		}
+		CloseLogFile(gLogInfo.gFile)
+
+		filelen, ok := GetCurFileSize(filename)
+		if ok {
+			if filelen >= int64(gLogInfo.gFileMaxSize) {
+				gLogInfo.gIndex, _ = GetNewFileIndex(gLogInfo.gFilePath, gLogInfo.gPrefix)
+			}
+		}
+	}
+}
+
+//
+//func main() {
+//	InitLog("./ttt/log","sds",1)
+//
+//
+//}
 
 const (
-
 	FATAL = 0
 	ALERT = 1
 	ERROR = 2
-	WARN =  3
-	INFO =  4
+	WARN  = 3
+	INFO  = 4
 	DEBUG = 5
 )
 
-/*
-	参数一，文件路径
-	参数二，打印日志前缀
-*/
-func InitLog(path string,prefix string) *log.Logger {
-
-	timeWriter := &TimeWriter{
-		Dir:        path,
-		Compress:   true,
-		ReserveDay: 30,
-	}
-	SimLog =  log.New(timeWriter, prefix, log.LstdFlags)
-
-	logleavel = ERROR
-
-	return SimLog
-}
-
 func SetLogLeavel(l int) {
 
-	logleavel = l
+	gLogInfo.gLogLeavel = l
 }
 
-func Fatal(v ...interface{} )  {
+func Fatal(v ...interface{}) {
 
-	if logleavel >= FATAL{
-		SimLog.Println(v)
+	var ret string
+	if gLogInfo.gLogLeavel >= FATAL {
+		ret = "[" + GetCurTimeString() + "]:" + GetParamString(v)
+		gLogInfo.gLogFifo.PutEntryFifo(NewEntryFifo(int32(1), []byte(ret)))
 	}
 }
 
+func Alert(v ...interface{}) {
 
-func Alert(v ...interface{} )  {
-
-	if logleavel >= ALERT{
-		SimLog.Println(v)
+	var ret string
+	if gLogInfo.gLogLeavel >= ALERT {
+		ret = "[" + GetCurTimeString() + "]:" + GetParamString(v)
+		gLogInfo.gLogFifo.PutEntryFifo(NewEntryFifo(int32(1), []byte(ret)))
 	}
 }
 
-func Warn(v ...interface{} )  {
+func Warn(v ...interface{}) {
 
-	if logleavel >= WARN{
-		SimLog.Println(v)
+	var ret string
+	if gLogInfo.gLogLeavel >= WARN {
+		ret = "[" + GetCurTimeString() + "]:" + GetParamString(v)
+		gLogInfo.gLogFifo.PutEntryFifo(NewEntryFifo(int32(1), []byte(ret)))
 	}
 }
 
-func Info(v ...interface{} )  {
+func Info(v ...interface{}) {
 
-	if logleavel >= INFO{
-		SimLog.Println(v)
+	var ret string
+	if gLogInfo.gLogLeavel >= INFO {
+		ret = "[" + GetCurTimeString() + "]:" + GetParamString(v)
+		gLogInfo.gLogFifo.PutEntryFifo(NewEntryFifo(int32(1), []byte(ret)))
 	}
 }
 
-func Debug(v ...interface{} )  {
+func Debug(v ...interface{}) {
 
-	if logleavel >= DEBUG{
-		SimLog.Println(v)
+	var ret string
+	if gLogInfo.gLogLeavel >= DEBUG {
+		ret = "[" + GetCurTimeString() + "]:" + GetParamString(v)
+		gLogInfo.gLogFifo.PutEntryFifo(NewEntryFifo(int32(1), []byte(ret)))
 	}
 }
-

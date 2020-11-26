@@ -37,7 +37,6 @@ func (p *BytesPool) PutFifo(c []byte) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 type EntryFifo struct {
 	Key    int32
 	Values []byte
@@ -76,4 +75,8 @@ func (p *LimitedEntryFifo) PutEntryFifo(e EntryFifo) {
 	case p.pool <- e:
 	default:
 	}
+}
+
+func (p *LimitedEntryFifo) EntryFifoLen() int {
+	return len(p.pool)
 }

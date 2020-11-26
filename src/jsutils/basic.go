@@ -10,76 +10,75 @@ import (
 	"unsafe"
 )
 
-func DisplayHexString(source []byte,bank int) string {
+func DisplayHexString(source []byte, bank int) string {
 	var sa = make([]string, 0)
 	for _, v := range source {
 		sa = append(sa, fmt.Sprintf("%02X", v))
 	}
-	bankstr :=""
-	for i:=0 ;i<bank;i++ {
-		bankstr +=" "
+	bankstr := ""
+	for i := 0; i < bank; i++ {
+		bankstr += " "
 	}
 	ss := strings.Join(sa, bankstr)
 	return ss
 }
 
-func GetIpPort(src string) (string,int) {
-	arr:=strings.Split(src,":")
-	port,_:=strconv.Atoi(arr[1])
-	return arr[0],port
+func GetIpPort(src string) (string, int) {
+	arr := strings.Split(src, ":")
+	port, _ := strconv.Atoi(arr[1])
+	return arr[0], port
 }
 
-func GetStrSlit(src string,key string,pos int) string {
-	arr:=strings.Split(src,key)
-	if len(arr) >=pos{
+func GetStrSlit(src string, key string, pos int) string {
+	arr := strings.Split(src, key)
+	if len(arr) >= pos {
 		return arr[pos-1]
 	}
 	return ""
 }
 
-func GetJsonStr(insrc string,keyStr string) (string,bool) {
+func GetJsonStr(insrc string, keyStr string) (string, bool) {
 	var bret bool = false
 	var indexend int
 	var retstr string
-	if len(insrc)<=0 || len(keyStr)<=0 {
-		return retstr,bret
+	if len(insrc) <= 0 || len(keyStr) <= 0 {
+		return retstr, bret
 	}
 	var keystart string
-	keystart ="\""+keyStr
-	keystart = keystart+"\""
+	keystart = "\"" + keyStr
+	keystart = keystart + "\""
 
-	index := strings.Index(insrc,keystart)
-	if index<0{
-		return retstr,bret
+	index := strings.Index(insrc, keystart)
+	if index < 0 {
+		return retstr, bret
 	}
-
 
 	ss := insrc[index+len(keystart):]
 
-	indexend1 := strings.Index(ss,",")
-	if indexend1>0 {
+	indexend1 := strings.Index(ss, ",")
+	if indexend1 > 0 {
 		indexend = indexend1
 	}
-	indexend2 := strings.Index(ss,"}")
-	if indexend2>0 {
-		if indexend>indexend2{
+	indexend2 := strings.Index(ss, "}")
+	if indexend2 > 0 {
+		if (indexend <= 0) || (indexend > indexend2) {
 			indexend = indexend2
 		}
-	}else if indexend<0 {
+	} else if indexend < 0 {
 		return retstr, bret
 	}
 
 	retstr = ss[:indexend]
 
-	retstr = strings.TrimLeft(retstr,":")
-	retstr = strings.TrimLeft(retstr,"\"")
+	retstr = strings.TrimLeft(retstr, ":")
+	retstr = strings.TrimLeft(retstr, "\"")
 
-	retstr = strings.TrimRight(retstr,"}")
-	retstr = strings.TrimRight(retstr,",")
-	retstr = strings.TrimRight(retstr,"\"")
+	retstr = strings.TrimRight(retstr, "}")
+	retstr = strings.TrimRight(retstr, ",")
+	retstr = strings.TrimRight(retstr, "\"")
 
 	bret = true
-	return retstr,bret
+	return retstr, bret
 }
 
 func Uint16ToBytes(n uint16) []byte {
@@ -98,23 +97,23 @@ func Uint32ToBytes(n uint32) []byte {
 	}
 }
 
-func Int2Byte(data int)(ret []byte){
-	var len uintptr = unsafe.Sizeof(data)
-	ret = make([]byte, len)
+func Int2Byte(data int) (ret []byte) {
+	var len1 uintptr = unsafe.Sizeof(data)
+	ret = make([]byte, len1)
 	var tmp int = 0xff
 	var index uint = 0
-	for index=0; index<uint(len); index++{
-		ret[index] = byte((tmp<<(index*8) & data)>>(index*8))
+	for index = 0; index < uint(len1); index++ {
+		ret[index] = byte((tmp << (index * 8) & data) >> (index * 8))
 	}
 	return ret
 }
 
-func Byte2Int(data []byte)int{
+func Byte2Int(data []byte) int {
 	var ret int = 0
-	var len int = len(data)
+	var len1 int = len(data)
 	var i uint = 0
-	for i=0; i<uint(len); i++{
-		ret = ret | (int(data[i]) << (i*8))
+	for i = 0; i < uint(len1); i++ {
+		ret = ret | (int(data[i]) << (i * 8))
 	}
 	return ret
 }
@@ -135,11 +134,9 @@ func Hex2Byte(str string) []byte {
 	return bHex
 }
 
+var g_str string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
 
-var g_str string= "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
-
-
-func Base64Encode(data []byte, data_len int) ([]byte,bool){
+func Base64Encode(data []byte, data_len int) ([]byte, bool) {
 	var prepare int
 	var ret_len int
 	var temp int
@@ -151,16 +148,16 @@ func Base64Encode(data []byte, data_len int) ([]byte,bool){
 
 	ret_len = data_len / 3
 	temp = data_len % 3
-	if (temp > 0){
+	if temp > 0 {
 		ret_len += 1
 	}
 	ret_len = ret_len * 4
-	ret = make([]byte,ret_len)
+	ret = make([]byte, ret_len)
 
-	for ;tmp < data_len;{
+	for tmp < data_len {
 		temp = 0
 		prepare = 0
-		for ;temp < 3; {
+		for temp < 3 {
 			if tmp >= data_len {
 				break
 			}
@@ -170,10 +167,10 @@ func Base64Encode(data []byte, data_len int) ([]byte,bool){
 			temp++
 		}
 		prepare = (prepare << ((3 - temp) * 8))
-		for i := 0; i < 4; i++{
-			if (temp < i){
+		for i := 0; i < 4; i++ {
+			if temp < i {
 				changed[i] = 0x40
-			}else{
+			} else {
 				dsd := (prepare >> ((3 - i) * 6)) & 0x3F
 				changed[i] = uint8(dsd)
 			}
@@ -182,15 +179,15 @@ func Base64Encode(data []byte, data_len int) ([]byte,bool){
 		}
 	}
 	//ret[pos] = 0x00
-	return ret,true
+	return ret, true
 }
 
-func Base64FindPos(inchar string)  int{
-	return strings.Index(g_str,inchar)
+func Base64FindPos(inchar string) int {
+	return strings.Index(g_str, inchar)
 }
 
-func Base64Decode(data []byte, data_len int) ([]byte,bool) {
-	var ret_len int= (data_len / 4) * 3
+func Base64Decode(data []byte, data_len int) ([]byte, bool) {
+	var ret_len int = (data_len / 4) * 3
 	var equal_count int
 	var pos int
 	var tmp int
@@ -198,37 +195,37 @@ func Base64Decode(data []byte, data_len int) ([]byte,bool) {
 
 	var prepare int
 	var i int
-	if (data [data_len - 1] == '='){
+	if data[data_len-1] == '=' {
 		equal_count += 1
 	}
-	if (data [+data_len - 2] == '='){
+	if data[+data_len-2] == '=' {
 		equal_count += 1
 	}
-	if (data [ data_len - 3] == '='){//seems impossible
+	if data[data_len-3] == '=' { //seems impossible
 		equal_count += 1
 	}
-	switch (equal_count){
+	switch equal_count {
 	case 0:
-		ret_len += 4	//3 + 1 [1 for NULL]
+		ret_len += 4 //3 + 1 [1 for NULL]
 		break
 	case 1:
-		ret_len += 4	//Ceil((6*3)/8)+1
+		ret_len += 4 //Ceil((6*3)/8)+1
 		break
 	case 2:
-		ret_len += 3	//Ceil((6*2)/8)+1
+		ret_len += 3 //Ceil((6*2)/8)+1
 		break
 	case 3:
-		ret_len += 2	//Ceil((6*1)/8)+1
+		ret_len += 2 //Ceil((6*1)/8)+1
 		break
 	}
-	var ret = make([]byte,ret_len)
+	var ret = make([]byte, ret_len)
 
-	for ;tmp < (data_len - equal_count);{
+	for tmp < (data_len - equal_count) {
 		temp = 0
 		prepare = 0
 
-		for ;temp < 4;{
-			if (tmp >= (data_len - equal_count)){
+		for temp < 4 {
+			if tmp >= (data_len - equal_count) {
 				break
 			}
 			var str string = string(data[tmp])
@@ -236,18 +233,18 @@ func Base64Decode(data []byte, data_len int) ([]byte,bool) {
 			temp++
 			tmp++
 		}
-		prepare = prepare << ((4 - temp) * 6);
-		for i = 0; i<3; i++{
-			if (i == temp){
+		prepare = prepare << ((4 - temp) * 6)
+		for i = 0; i < 3; i++ {
+			if i == temp {
 				break
 			}
 			ttt := (prepare >> ((2 - i) * 8))
-			ttt = ttt& 0xFF
+			ttt = ttt & 0xFF
 			ret[pos] = uint8(ttt)
 			pos++
 		}
 	}
-	return ret,true
+	return ret, true
 }
 
 func GetNext16(in *uint16) uint16 {
@@ -268,11 +265,11 @@ func GetNext32(in *uint32) uint32 {
 
 func MyZlibUnCompress(src []byte) []byte {
 	/*
-	b := bytes.NewReader(src)
-	var out bytes.Buffer
-	r, _ := zlib.NewReader(b)
-	io.Copy(&out, r)
-	return out.Bytes()
+		b := bytes.NewReader(src)
+		var out bytes.Buffer
+		r, _ := zlib.NewReader(b)
+		io.Copy(&out, r)
+		return out.Bytes()
 	*/
 
 	var out bytes.Buffer
@@ -286,7 +283,7 @@ func MyZlibUnCompress(src []byte) []byte {
 	}
 	zlibReader.Close()
 	return out.Bytes()
-	
+
 }
 
 func MyZlibCompress(src []byte) []byte {
@@ -296,4 +293,3 @@ func MyZlibCompress(src []byte) []byte {
 	w.Close()
 	return in.Bytes()
 }
-
