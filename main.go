@@ -71,7 +71,7 @@ func main() {
 		slot := 1
 		ran, autn = getrandautn()
 		sim.Auth(slot, g_imsi[slot], ran, autn, g_cmdclientip[slot])
-		/*
+		///*
 			slot = 2
 			ran,autn = getrandautn()
 			sim.Auth(slot,g_imsi[slot],ran,autn,g_cmdclientip[slot])
@@ -79,6 +79,6 @@ func main() {
 			slot = 9
 			ran,autn = getrandautn()
 			sim.Auth(slot,g_imsi[slot],ran,autn,g_cmdclientip[slot])
-		*/
+		//*/
 	}
 }

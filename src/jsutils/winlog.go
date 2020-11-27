@@ -107,7 +107,7 @@ func GetNewFileIndex(filepath string, prefix string) (index int, bret bool) {
 func GetCurFileSize(filename string) (size int64, bret bool) {
 
 	fi, err := os.Stat(filename)
-	if os.IsNotExist(err) {
+	if err == nil {
 		size = fi.Size()
 		bret = true
 	}
