@@ -43,9 +43,11 @@ type EntryFifo struct {
 }
 
 func NewEntryFifo(key int32, values []byte) EntryFifo {
+	bbb := make([]byte,len(values))
+	copy(bbb,values)
 	return EntryFifo{
 		Key:    key,
-		Values: values,
+		Values: bbb,
 	}
 }
 
