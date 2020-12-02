@@ -167,7 +167,6 @@ func InitLog(filepath string, prefix string, filesize int) bool {
 
 func LogProcess() {
 
-	var ok bool
 	defer CloseLogFile(gLogInfo.gFile)
 
 	fmt.Println("LogProcess ...")
@@ -184,7 +183,15 @@ func LogProcess() {
 		}
 		//fmt.Println("have log")
 
-		filename := GetCurLogFileName(gLogInfo.gFilePath, gLogInfo.gPrefix, gLogInfo.gIndex)
+		filename := GetCurLogFileName(gLogInfo.gFilePath,gLogInfo.gPrefix,gLogInfo.gIndex)
+		filelen,ok :=GetCurFileSize(filename)
+		if ok{
+			if filelen>=int64(gLogInfo.gFileMaxSize){
+				gLogInfo.gIndex,_ = GetNewFileIndex(gLogInfo.gFilePath,gLogInfo.gPrefix)
+			}
+		}
+
+		filename = GetCurLogFileName(gLogInfo.gFilePath,gLogInfo.gPrefix,gLogInfo.gIndex)
 		gLogInfo.gFile, ok = CreateLogFile(filename)
 		if ok == false {
 			fmt.Println("!!!LogProcess CreateLogFile error ", filename)
@@ -211,12 +218,6 @@ func LogProcess() {
 		}
 		CloseLogFile(gLogInfo.gFile)
 
-		filelen, ok := GetCurFileSize(filename)
-		if ok {
-			if filelen >= int64(gLogInfo.gFileMaxSize) {
-				gLogInfo.gIndex, _ = GetNewFileIndex(gLogInfo.gFilePath, gLogInfo.gPrefix)
-			}
-		}
 	}
 }
 
