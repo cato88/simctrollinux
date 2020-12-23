@@ -74,8 +74,8 @@ func FindDataClientInfo(clientid int32) (*UdpClientInfo, bool) {
 func findDataClientByRemoteIpPort(remoteIp string, remotePort int) (int, bool) {
 	var remoteClientAddr = fmt.Sprintf("%s:%d", remoteIp, remotePort)
 
-	gDataUdpClientMap.mutex.RLock()
-	defer gDataUdpClientMap.mutex.RUnlock()
+	gDataUdpClientMap.mutex.Lock()
+	defer gDataUdpClientMap.mutex.Unlock()
 	for _, v := range gDataUdpClientMap.mp {
 		if v.Addrstr == remoteClientAddr {
 			return int(v.Clientid), true
@@ -118,8 +118,8 @@ func DataUdpExecProcess() {
 	}
 }
 func DataTimeOut() {
-	gDataUdpClientMap.mutex.RLock()
-	defer gDataUdpClientMap.mutex.RUnlock()
+	gDataUdpClientMap.mutex.Lock()
+	defer gDataUdpClientMap.mutex.Unlock()
 	for key, v := range gDataUdpClientMap.mp {
 		if time.Now().Unix() >= (v.LastTime + gDataClientKeepActiveTime) {
 			gDataClientIdArr[key] = 0
@@ -324,8 +324,8 @@ func DataUdpExec(msg *jsutils.EntryFifo) {
 
 func CloseDataClient(clientId int) bool {
 	udpInfo, ok := FindDataClientInfo(int32(clientId))
-	gDataUdpClientMap.mutex.RLock()
-	defer gDataUdpClientMap.mutex.RUnlock()
+	gDataUdpClientMap.mutex.Lock()
+	defer gDataUdpClientMap.mutex.Unlock()
 	if ok == true {
 		delete(gDataUdpAddrMap.mp, udpInfo.Addrstr)
 	}

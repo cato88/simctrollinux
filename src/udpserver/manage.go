@@ -40,9 +40,9 @@ type ClientIdCLientInfoMap struct {
 }
 
 func (this *ClientIdCLientInfoMap) MapClientInfoGet(key int) (*UdpClientInfo, bool) {
-	this.mutex.RLock()
+	this.mutex.Lock()
 	ret, ok := this.mp[key]
-	this.mutex.RUnlock()
+	this.mutex.Unlock()
 	if ok == false {
 		return nil, false
 	}
@@ -50,8 +50,8 @@ func (this *ClientIdCLientInfoMap) MapClientInfoGet(key int) (*UdpClientInfo, bo
 }
 
 func (this *ClientIdCLientInfoMap) MapClientInfoSet(key int, info *UdpClientInfo) bool {
-	this.mutex.RLock()
-	defer this.mutex.RUnlock()
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
 	this.mp[key] = info
 	return true
 }
@@ -62,9 +62,9 @@ type AddrClientIdMap struct {
 }
 
 func (this *AddrClientIdMap) MapClientIdGet(key string) (int, bool) {
-	this.mutex.RLock()
+	this.mutex.Lock()
 	ret, ok := this.mp[key]
-	this.mutex.RUnlock()
+	this.mutex.Unlock()
 	if ok == false {
 		return 0, false
 	}
@@ -72,8 +72,8 @@ func (this *AddrClientIdMap) MapClientIdGet(key string) (int, bool) {
 }
 
 func (this *AddrClientIdMap) MapClientIdSet(key string, info int) bool {
-	this.mutex.RLock()
-	defer this.mutex.RUnlock()
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
 	this.mp[key] = info
 	return true
 }

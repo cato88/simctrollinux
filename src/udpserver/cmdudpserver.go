@@ -112,8 +112,8 @@ func AddCmdFifo(cmdClientId int, instr []byte) {
 
 func GetCmdClientIdByClientIp(cmdClientIp string) (int, bool) {
 	var cmdClientId int = 0
-	gCmdUdpClientMap.mutex.RLock()
-	defer gCmdUdpClientMap.mutex.RUnlock()
+	gCmdUdpClientMap.mutex.Lock()
+	defer gCmdUdpClientMap.mutex.Unlock()
 	for _, v := range gCmdUdpClientMap.mp {
 		if v.ClientIp == cmdClientIp {
 			return int(v.Clientid), true
@@ -250,8 +250,8 @@ func UdpCmdServerRelease() {
 
 func CmdTimeout() {
 
-	gCmdUdpClientMap.mutex.RLock()
-	defer gCmdUdpClientMap.mutex.RUnlock()
+	gCmdUdpClientMap.mutex.Lock()
+	defer gCmdUdpClientMap.mutex.Unlock()
 	for key, v := range gCmdUdpClientMap.mp {
 		if time.Now().Unix() >= (v.LastTime + gCmdClientKeepActiveTime) {
 			ip, port := jsutils.GetIpPort(v.Addrstr)
